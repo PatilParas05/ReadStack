@@ -1,7 +1,6 @@
 package com.paraspatil.readstack.data.repository
 
 import com.paraspatil.readstack.data.local.BookDao
-import com.paraspatil.readstack.data.local.BookEntity
 import com.paraspatil.readstack.data.remote.GoogleBookApi
 import com.paraspatil.readstack.data.remote.toEntity
 import com.paraspatil.readstack.domain.model.Book
