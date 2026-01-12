@@ -4,8 +4,11 @@ import com.paraspatil.readstack.data.local.BookDao
 import com.paraspatil.readstack.data.local.BookEntity
 import com.paraspatil.readstack.data.remote.GoogleBookApi
 import com.paraspatil.readstack.data.remote.toEntity
+import com.paraspatil.readstack.domain.model.Book
+import com.paraspatil.readstack.domain.model.toDomain
 import com.paraspatil.readstack.domain.repository.BookRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,17 +19,21 @@ class BookRepositoryImpl @Inject constructor(
     private val dao: BookDao
 ) : BookRepository {
 
-    override fun getLibrary(): Flow<List<BookEntity>> {
-        return dao.getAllBooks()
+    override fun getLibrary(): Flow<List<Book>> {
+        return dao.getAllBooks().map { entities ->
+            entities.map { it.toDomain() }
+        }
     }
 
     override suspend fun searchBooks(query: String): Result<Unit> {
         return try {
-            val response = api.searchBooks(query)
+            val response = api.searchBooks(query, maxResults = 40)
             val bookEntities = response.items?.map { it.toEntity() } ?: emptyList()
 
            if(bookEntities.isNotEmpty()){
-               dao.upsertBook(bookEntities)
+               bookEntities.forEach { book->
+                   dao.upsertBooks(book)
+               }
            }
             Result.success(Unit)
         }catch (e:Exception){
@@ -34,7 +41,8 @@ class BookRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun deleteBook(book: BookEntity) {
-        dao.deleteBook(book)
+    override suspend fun deleteBook(bookId: String) {
+        dao.deleteBook(bookId)
+
     }
 }

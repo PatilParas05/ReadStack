@@ -1,25 +1,30 @@
 package com.paraspatil.readstack.di
 
-import android.app.Application
-import androidx.room.Room
-import com.paraspatil.readstack.data.local.BookDatabase
+import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
+import com.paraspatil.readstack.data.remote.GoogleBookApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import kotlinx.serialization.json.Json
+import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Retrofit
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-object BookModule {
+object NetworkModule {
+
     @Provides
     @Singleton
-    fun provideBookDatabase(app: Application): BookDatabase {
+    fun provideGoogleBookApi(): GoogleBookApi {
+        val contentType = "application/json".toMediaType()
+        val json = Json { ignoreUnknownKeys = true }
+
         return Retrofit.Builder()
-            .baseUrl(BookDatabase.BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create())
+            .baseUrl(GoogleBookApi.BASE_URL)
+            .addConverterFactory(json.asConverterFactory(contentType))
             .build()
-            .create(BookDatabase::class.java)
+            .create(GoogleBookApi::class.java)
     }
 }

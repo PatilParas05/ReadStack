@@ -1,6 +1,7 @@
 package com.paraspatil.readstack.di
 
 import com.paraspatil.readstack.data.repository.BookRepositoryImpl
+import com.paraspatil.readstack.domain.repository.BookRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -14,5 +15,5 @@ abstract class RepositoryModule{
     @Singleton
     abstract fun bindBookRepository(
         bookRepositoryImpl: BookRepositoryImpl
-    ):BookRepository
+    ): BookRepository
 }

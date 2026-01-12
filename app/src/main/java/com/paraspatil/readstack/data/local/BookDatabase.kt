@@ -1,17 +1,14 @@
 package com.paraspatil.readstack.data.local
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
+import androidx.room.Database
+import androidx.room.RoomDatabase
 
-@Entity(tableName = "readstackbook")
-data class BookEntity(
-    @PrimaryKey
-    val id : String,
-    val title: String,
-    val author :String,
-    val thumbnailUrl: String,
-    val description : String?,
-    val pageCount:Int?,
-    val publishedDate: String?,
-    val timestamp: Long=System.currentTimeMillis()
+@Database(
+    entities = [BookEntity::class],
+    version = 1,
+    exportSchema = false
+
 )
+abstract class BookDatabase : RoomDatabase() {
+    abstract val dao: BookDao
+}

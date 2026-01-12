@@ -15,7 +15,7 @@ interface BookDao {
     fun getBookById(bookId: String): Flow<BookEntity?>
 
     @Upsert
-    suspend fun upsertBook(book: BookEntity)
+    suspend fun upsertBooks(book: List<BookEntity>)
 
     @Delete
     suspend fun deleteBook(book: BookEntity)
