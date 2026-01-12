@@ -1,78 +1,313 @@
 package com.paraspatil.readstack.ui.library
 
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.paraspatil.readstack.domain.model.Book
+import coil.compose.AsyncImage
+import com.paraspatil.readstack.data.local.BookEntity
+import com.paraspatil.readstack.data.local.SearchResultEntity
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(viewModel: LibraryViewModel = hiltViewModel()) {
-    val books by viewModel.books.collectAsState()
-    var searchQuery by remember { mutableStateOf("") }
+fun LibraryScreen(viewModel: LibraryViewModel) {
+    val library by viewModel.library.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val searchResults by viewModel.searchResults.collectAsState()
+    val isSearching by viewModel.isSearching.collectAsState()
+    val searchError by viewModel.searchError.collectAsState()
+    val isOnline by viewModel.isOnline.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
+
+    var selectedTab by remember { mutableStateOf(0) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+
+    LaunchedEffect(searchError) {
+        searchError?.let {
+            snackbarHostState.showSnackbar(it)
+        }
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("ReadStack Library") })
-        }
-    ) { padding ->
-
-        Column(modifier = Modifier.padding(padding).padding(16.dp)) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                label = { Text("Search Books") },
-                modifier = Modifier.fillMaxWidth(),
-                trailingIcon = {
-                    TextButton(onClick = { viewModel.searchBooks(searchQuery) }) {
-                        Text("Go")
-
+            TopAppBar(
+                title = { Text("ReadStack") },
+                actions = {
+                    if (!isOnline) {
+                        Icon(
+                            Icons.Default.CloudOff,
+                            contentDescription = "Offline",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    IconButton(onClick = { viewModel.refreshLibrary() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                     }
                 }
             )
-            Spacer(modifier = Modifier.height(16.dp))
 
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(items = books, key = { it.id }) { book ->
-                    BookItem(book)
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+
+    ) { paddingValues ->
+        Column(modifier = Modifier
+            .padding(paddingValues)
+            .fillMaxWidth()) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.onSearchQueryChange(it) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                label = { Text("Search Books...") },
+                trailingIcon = {
+                    IconButton(onClick = {
+                        // FIX: When search is clicked, switch to the search tab
+                        selectedTab = 1
+                        viewModel.searchBooks()
+                    }) {
+                        Icon(Icons.Default.Search, contentDescription = "Search")
+                    }
+                },
+                singleLine = true
+            )
+
+            // FIX: Use a proper TabRow and always show it
+            TabRow(selectedTabIndex = selectedTab) {
+                Tab(
+                    selected = selectedTab == 0,
+                    onClick = { selectedTab = 0 },
+                    text = { Text("My Library (${library.size})") }
+                )
+                Tab(
+                    selected = selectedTab == 1,
+                    onClick = { selectedTab = 1 },
+                    text = { Text("Search (${searchResults.size})") }
+                )
+            }
+
+            // Show a loading indicator for the whole screen if refreshing
+            if (isRefreshing) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                when (selectedTab) {
+                    0 -> LibraryTab(
+                        books = library,
+                        onDeleteBook = { viewModel.deleteBook(it) }
+                    )
+
+                    1 -> SearchTab(
+                        searchResults = searchResults,
+                        isSearching = isSearching,
+                        onAddToLibrary = { viewModel.addLibrary(it) }
+                    )
                 }
             }
         }
     }
 }
 @Composable
-fun BookItem(book: Book) {
-    Card(modifier = Modifier
-        .fillMaxWidth()
-        .padding(8.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(text = book.title,style = MaterialTheme.typography.titleMedium)
-            Text(text = book.author,style = MaterialTheme.typography.bodySmall)
+fun LibraryTab(books: List<BookEntity>, onDeleteBook: (BookEntity) -> Unit) {
+    if (books.isEmpty()) {
+        EmptyState(message = "Your  library is empty. Search and add books!..")
+    }else   {
+        LazyColumn (
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp)
+        ){
+            items(books,key={it.id}){
+                book->
+                BookCard(
+                    title = book.title,
+                    author = book.author,
+                    thumbnailUrl = book.thumbnailUrl,
+                    description = book.description,
+                    onActionClick={onDeleteBook(book)},
+                   actionIcon=Icons.Default.Delete,
+                    actionContentDescription = "Remove from library"
+                )
+            }
+
         }
+    }
+}
+
+
+
+@Composable
+fun SearchTab(
+    searchResults: List<SearchResultEntity>,
+    isSearching: Boolean,
+    onAddToLibrary: (SearchResultEntity) -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        // This logic is now correct
+        if (searchResults.isEmpty() && !isSearching) {
+            EmptyState(message = "Search for books to see results")
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                items(searchResults, key = { it.id }) { result ->
+                    BookCard(
+                        title = result.title,
+                        author = result.author,
+                        thumbnailUrl = result.thumbnailUrl,
+                        description = result.description,
+                        onActionClick = { onAddToLibrary(result) },
+                        // FIX: Use the 'Add' icon for adding a book
+                        actionIcon = Icons.Default.Add,
+                        actionContentDescription = "Add to library"
+                    )
+                }
+            }
+        }
+
+        if (isSearching) {
+            CircularProgressIndicator()
+        }
+    }
+}
+@Composable
+fun BookCard(
+    title: String,
+    author: String,
+    thumbnailUrl: String,
+    description: String?,
+    onActionClick: () -> Unit,
+    actionIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    actionContentDescription: String
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+
+        ) {
+            AsyncImage(
+                model = thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier.size(80.dp, 120.dp),
+                contentScale = ContentScale.Crop
+
+            )
+            Spacer(modifier = Modifier.size(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+
+                )
+                Text(
+                    text = author,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (description != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            IconButton(onClick = onActionClick) {
+                Icon(
+                    imageVector = actionIcon,
+                    contentDescription = actionContentDescription,
+                    tint = MaterialTheme.colorScheme.primary
+
+                )
+            }
+        }
+
+    }
+}
+
+
+
+
+@Composable
+fun EmptyState(message: String) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

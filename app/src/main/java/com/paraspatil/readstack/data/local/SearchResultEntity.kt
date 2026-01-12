@@ -3,7 +3,7 @@ package com.paraspatil.readstack.data.local
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "search_result")
+@Entity(tableName = "search_results")
 data class SearchResultEntity(
     @PrimaryKey
     val id: String,

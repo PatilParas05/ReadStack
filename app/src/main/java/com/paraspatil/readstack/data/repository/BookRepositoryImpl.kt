@@ -53,7 +53,7 @@ class BookRepositoryImpl @Inject constructor(
             val response = api.searchBooks(query, maxResults = 40)
             dao.clearSearchResults(query)
 
-            response.items.forEach { item ->
+            response.items?.forEach { item ->
                val searchResult = item.toSearchResultEntity(query)
                 dao.upsertSearchResult(searchResult)
             }

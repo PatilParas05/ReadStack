@@ -17,19 +17,22 @@ interface BookDao {
     @Upsert
     suspend fun upsertBooks(book: BookEntity)
 
+    @Delete
+    suspend fun deleteBook(book: BookEntity)
+
     @Query("DELETE FROM readstackbook ")
     suspend fun clearAllBooks()
 
-    @Query("DELETE FROM search_result WHERE searchQuery = :query ORDER BY timestamp DESC LIMIT 5")
+    @Query("SELECT * FROM search_results WHERE searchQuery = :query ORDER BY timestamp DESC")
     fun getSearchResults(query: String):Flow<List<SearchResultEntity>>
 
     @Upsert
     suspend fun upsertSearchResult(result: SearchResultEntity)
 
-    @Query("DELETE FROM search_result WHERE searchQuery = :query")
+    @Query("DELETE FROM search_results WHERE searchQuery = :query")
     suspend fun clearSearchResults(query: String)
 
-    @Query("DELETE FROM search_result WHERE timestamp <:expirytime")
+    @Query("DELETE FROM search_results WHERE timestamp < :expirytime")
     suspend fun clearExpiredSearchResults(expirytime:Long)
 
 
