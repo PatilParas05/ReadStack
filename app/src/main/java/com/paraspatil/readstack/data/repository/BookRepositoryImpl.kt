@@ -3,11 +3,13 @@ package com.paraspatil.readstack.data.repository
 import com.paraspatil.readstack.data.local.BookDao
 import com.paraspatil.readstack.data.local.BookEntity
 import com.paraspatil.readstack.data.local.SearchResultEntity
+import com.paraspatil.readstack.data.remote.BookItemDto
 import com.paraspatil.readstack.data.remote.GoogleBookApi
 import com.paraspatil.readstack.data.remote.toSearchResultEntity
 import com.paraspatil.readstack.data.util.NetworkMonitor
 import com.paraspatil.readstack.domain.repository.BookRepository
 import com.paraspatil.readstack.domain.util.NetworkResult
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -65,6 +67,47 @@ class BookRepositoryImpl @Inject constructor(
             )
         }
     }
+
+    override suspend fun searchBooksWithPagination(
+        query: String,
+        startIndex: Int,
+        maxResults: Int,
+        shouldReplace: Boolean
+    ): NetworkResult<Unit> {
+        if (!networkMonitor.isCurrentlyOnline()) {
+            return NetworkResult.Offline()
+        }
+        return try {
+            val response =  api.searchBooksWithPagination(
+                query=query,
+                startIndex=startIndex,
+                maxResults= maxResults
+
+            )
+
+            if (shouldReplace){
+                dao.clearSearchResults(query)
+            }
+
+            coroutineScope {
+                response.items?.forEach { item: BookItemDto ->
+                    val searchResult = item.toSearchResultEntity(query)
+                    dao.upsertSearchResult(searchResult)
+                }
+            }
+            NetworkResult.Success(Unit)
+
+
+        }catch (e :Exception){
+            NetworkResult.Error(
+                message =e.message?:
+                "An unknown error occurred.",
+                exception = e
+            )
+        }
+
+    }
+
 
     override suspend fun clearSearchCache(query: String) {
         dao.clearSearchResults(query)

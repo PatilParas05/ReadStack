@@ -26,6 +26,7 @@ import javax.inject.Inject
 class LibraryViewModel @Inject constructor(
     private val repository: BookRepository
 ) : ViewModel() {
+    private val _maxResults=20
     private var searchJob: Job? = null
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
@@ -104,17 +105,28 @@ class LibraryViewModel @Inject constructor(
             _isSearching.value=true
             _searchError.value = null
 
+            _currentPage.value+=1
             _currentSearchQuery.value=query
 
-            when (val result=repository.searchBooks(query)){
+            val startIndex =_currntPage.value*_maxResults
+
+            when (val result=repository.searchBooksWithPagination(
+                query=query,
+                startIndex=startIndex,
+                maxResults = _maxResults,
+                shouldReplace=true
+
+            )){
                 is NetworkResult.Success->{
                     _searchError.value = null
                 }
                 is NetworkResult.Error->{
                     _searchError.value=result.message
+                    _currentPage.value-=1
                 }
                 is NetworkResult.Offline->{
                     _searchError.value="No internet connection. Showing cached results"
+                    _currentPage.value-=1
                 }
                 is NetworkResult.Loading->{}
             }
