@@ -39,6 +39,8 @@ class LibraryViewModel @Inject constructor(
 
     private val _currentSearchQuery = MutableStateFlow("")
 
+    private val _currentPage = MutableStateFlow(-1)
+
     val searchResults: StateFlow<List<SearchResultEntity>> = _currentSearchQuery
         .flatMapLatest { query ->
             if (query.isBlank()) {
@@ -91,6 +93,10 @@ class LibraryViewModel @Inject constructor(
     fun onSearchQueryChange(newQuery:String){
         _searchQuery.value=newQuery
 
+        if (newQuery!=_currentSearchQuery.value){
+            _currentPage.value=-1
+        }
+
         }
 
     fun searchBooks(){
@@ -105,10 +111,11 @@ class LibraryViewModel @Inject constructor(
             _isSearching.value=true
             _searchError.value = null
 
-            _currentPage.value+=1
-            _currentSearchQuery.value=query
+            _currentPage.value +=1
 
-            val startIndex =_currntPage.value*_maxResults
+
+            val startIndex = _currentPage.value * _maxResults
+            _currentSearchQuery.value=query
 
             when (val result=repository.searchBooksWithPagination(
                 query=query,
@@ -122,11 +129,11 @@ class LibraryViewModel @Inject constructor(
                 }
                 is NetworkResult.Error->{
                     _searchError.value=result.message
-                    _currentPage.value-=1
+                    _currentPage.value -= 1
                 }
                 is NetworkResult.Offline->{
                     _searchError.value="No internet connection. Showing cached results"
-                    _currentPage.value-=1
+                    _currentPage.value -= 1
                 }
                 is NetworkResult.Loading->{}
             }

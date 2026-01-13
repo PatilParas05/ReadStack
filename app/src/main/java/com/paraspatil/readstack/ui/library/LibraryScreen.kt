@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudOff
@@ -45,11 +47,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -72,6 +76,7 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
     var selectedTab by remember { mutableStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val coroutineScope= rememberCoroutineScope()
 
     LaunchedEffect(searchError) {
         searchError?.let {
@@ -103,7 +108,8 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
     ) { paddingValues ->
         Column(modifier = Modifier
             .padding(paddingValues)
-            .fillMaxWidth()) {
+            .fillMaxWidth())
+        {
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.onSearchQueryChange(it) },
@@ -112,19 +118,30 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 label = { Text("Search Books") },
                 trailingIcon = {
-                    if (searchQuery.isNotEmpty()){
-                        IconButton(onClick = { viewModel.clearSearch()}) {
-                            Icon(Icons.Default.Delete, contentDescription = "Clear Search")
+                    Row {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.clearSearch() }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Clear Search")
+                            }
                         }
-                    }
-                    IconButton(onClick = {
+                        IconButton(onClick = {
+                            selectedTab = 1
+                            viewModel.searchBooks()
+                            keyboardController?.hide()
+                        }) {
+                            Icon(Icons.Default.Search, contentDescription = "Search")
+                        }
+                    }    
+                },
+                keyboardOptions = KeyboardOptions(
+                    imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(
+                    onSearch = {
                         selectedTab = 1
                         viewModel.searchBooks()
                         keyboardController?.hide()
-                    }) {
-                        Icon(Icons.Default.Search, contentDescription = "Search")
                     }
-                },
+                ),
                 singleLine = true
             )
             AnimatedVisibility(
@@ -156,11 +173,12 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                    SearchTab(
                        searchResults = searchResults,
                        isSearching = isSearching,
-                       onAddToLibrary = {viewModel.addLibrary(it)
-                       snackbarHostState.currentSnackbarData?.dismiss()
-                           kotlinx.coroutines.MainScope().launch {
-                               snackbarHostState.showSnackbar("Book added to library")
-                           }
+                       onAddToLibrary = {result ->
+                            viewModel.addLibrary(result)
+                            coroutineScope.launch {
+                                snackbarHostState.currentSnackbarData?.dismiss()
+                                snackbarHostState.showSnackbar("Book added to library")
+                            }
                        }
                    )
                }
@@ -168,6 +186,7 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
         }
     }
 }
+
 @Composable
 fun LibraryTab(
     books: List<BookEntity>,
@@ -313,9 +332,8 @@ fun BookCard(
 @Composable
 fun EmptyState(message: String) {
     Box(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
-
     ) {
         Text(
             text = message,
