@@ -1,6 +1,9 @@
 package com.paraspatil.readstack.ui.library
 
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +29,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -45,11 +49,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.paraspatil.readstack.data.local.BookEntity
 import com.paraspatil.readstack.data.local.SearchResultEntity
+import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -65,7 +71,7 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
 
     var selectedTab by remember { mutableStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
-
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(searchError) {
         searchError?.let {
@@ -106,15 +112,30 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 label = { Text("Search Books") },
                 trailingIcon = {
+                    if (searchQuery.isNotEmpty()){
+                        IconButton(onClick = { viewModel.clearSearch()}) {
+                            Icon(Icons.Default.Delete, contentDescription = "Clear Search")
+                        }
+                    }
                     IconButton(onClick = {
                         selectedTab = 1
                         viewModel.searchBooks()
+                        keyboardController?.hide()
                     }) {
                         Icon(Icons.Default.Search, contentDescription = "Search")
                     }
                 },
                 singleLine = true
             )
+            AnimatedVisibility(
+                visible = isSearching || isRefreshing,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
             TabRow(selectedTabIndex = selectedTab) {
                 Tab(
                     selected = selectedTab == 0,
@@ -127,38 +148,36 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                     text = { Text("Search (${searchResults.size})") }
                 )
             }
-            if (isRefreshing) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            } else {
-                when (selectedTab) {
-                    0 -> LibraryTab(
-                        books = library,
-                        onDeleteBook = { viewModel.deleteBook(it) }
-                    )
-
-                    1 -> SearchTab(
-                        searchResults = searchResults,
-                        isSearching = isSearching,
-                        onAddToLibrary = { viewModel.addLibrary(it) }
-                    )
-                }
-            }
+           when(selectedTab){
+               0->{
+                   LibraryTab(books = library, onDeleteBook = {viewModel.deleteBook(it)})
+               }
+               1->{
+                   SearchTab(
+                       searchResults = searchResults,
+                       isSearching = isSearching,
+                       onAddToLibrary = {viewModel.addLibrary(it)
+                       snackbarHostState.currentSnackbarData?.dismiss()
+                           kotlinx.coroutines.MainScope().launch {
+                               snackbarHostState.showSnackbar("Book added to library")
+                           }
+                       }
+                   )
+               }
+           }
         }
     }
 }
 @Composable
-fun LibraryTab(books: List<BookEntity>, onDeleteBook: (BookEntity) -> Unit) {
+fun LibraryTab(
+    books: List<BookEntity>,
+    onDeleteBook: (BookEntity) -> Unit) {
     if (books.isEmpty()) {
         Spacer(modifier = Modifier .padding(top = 30.dp))
-        EmptyState(message = "Your  library is empty. Search and add books!..")
+        EmptyState(message = "Your  library is empty. \nSearch and add books!..")
     }else   {
         LazyColumn (
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth() .padding(top = 10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(horizontal = 16.dp)
         ){
