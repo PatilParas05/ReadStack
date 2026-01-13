@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -78,6 +79,7 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val coroutineScope= rememberCoroutineScope()
 
+
     LaunchedEffect(searchError) {
         searchError?.let {
             snackbarHostState.showSnackbar(it)
@@ -95,6 +97,9 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                             contentDescription = "Offline",
                             tint = MaterialTheme.colorScheme.error
                         )
+                    }
+                    IconButton(onClick =  { viewModel.clearLibrary() }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Clear Library")
                     }
                     IconButton(onClick = { viewModel.refreshLibrary() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
@@ -119,11 +124,6 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                 label = { Text("Search Books") },
                 trailingIcon = {
                     Row {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.clearSearch() }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Clear Search")
-                            }
-                        }
                         IconButton(onClick = {
                             selectedTab = 1
                             viewModel.searchBooks()
@@ -171,6 +171,7 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                }
                1->{
                    SearchTab(
+                       searchQuery = searchQuery,
                        searchResults = searchResults,
                        isSearching = isSearching,
                        onAddToLibrary = {result ->
@@ -221,10 +222,16 @@ fun LibraryTab(
 
 @Composable
 fun SearchTab(
+    searchQuery: String,
     searchResults: List<SearchResultEntity>,
     isSearching: Boolean,
     onAddToLibrary: (SearchResultEntity) -> Unit
 ) {
+    val listState = remember (searchQuery){
+        androidx.compose.foundation.lazy.LazyListState()
+    }
+
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -233,6 +240,7 @@ fun SearchTab(
             EmptyState(message = "Search for books to see results")
         } else {
             LazyColumn(
+                state = listState,
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(16.dp)
@@ -251,7 +259,7 @@ fun SearchTab(
             }
         }
 
-        if (isSearching) {
+        if (isSearching && searchResults.isEmpty()) {
             CircularProgressIndicator()
         }
     }
