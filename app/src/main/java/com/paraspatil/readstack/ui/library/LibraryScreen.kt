@@ -104,10 +104,9 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
-                label = { Text("Search Books...") },
+                label = { Text("Search Books") },
                 trailingIcon = {
                     IconButton(onClick = {
-                        // FIX: When search is clicked, switch to the search tab
                         selectedTab = 1
                         viewModel.searchBooks()
                     }) {
@@ -116,8 +115,6 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                 },
                 singleLine = true
             )
-
-            // FIX: Use a proper TabRow and always show it
             TabRow(selectedTabIndex = selectedTab) {
                 Tab(
                     selected = selectedTab == 0,
@@ -130,8 +127,6 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                     text = { Text("Search (${searchResults.size})") }
                 )
             }
-
-            // Show a loading indicator for the whole screen if refreshing
             if (isRefreshing) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -159,6 +154,7 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
 @Composable
 fun LibraryTab(books: List<BookEntity>, onDeleteBook: (BookEntity) -> Unit) {
     if (books.isEmpty()) {
+        Spacer(modifier = Modifier .padding(top = 30.dp))
         EmptyState(message = "Your  library is empty. Search and add books!..")
     }else   {
         LazyColumn (
@@ -195,7 +191,6 @@ fun SearchTab(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-        // This logic is now correct
         if (searchResults.isEmpty() && !isSearching) {
             EmptyState(message = "Search for books to see results")
         } else {
@@ -211,7 +206,6 @@ fun SearchTab(
                         thumbnailUrl = result.thumbnailUrl,
                         description = result.description,
                         onActionClick = { onAddToLibrary(result) },
-                        // FIX: Use the 'Add' icon for adding a book
                         actionIcon = Icons.Default.Add,
                         actionContentDescription = "Add to library"
                     )

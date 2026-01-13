@@ -1,6 +1,5 @@
 package com.paraspatil.readstack.data.repository
 
-import androidx.compose.foundation.interaction.HoverInteraction
 import com.paraspatil.readstack.data.local.BookDao
 import com.paraspatil.readstack.data.local.BookEntity
 import com.paraspatil.readstack.data.local.SearchResultEntity
@@ -34,7 +33,7 @@ class BookRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteBook(book: BookEntity) {
-        dao.upsertBooks(book)
+        dao.deleteBook(book)
     }
 
     override suspend fun clearLibrary() {
@@ -60,7 +59,8 @@ class BookRepositoryImpl @Inject constructor(
             NetworkResult.Success(Unit)
         } catch (e: Exception) {
             NetworkResult.Error(
-                    message =e.message?:"An unknown error occurred.",
+                    message =e.message?:
+                    "An unknown error occurred.",
               exception = e
             )
         }
