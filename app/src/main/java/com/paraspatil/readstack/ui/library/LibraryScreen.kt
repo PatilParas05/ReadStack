@@ -16,12 +16,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
@@ -29,6 +31,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,6 +49,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,22 +71,21 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(viewModel: LibraryViewModel) {
-    val library by viewModel.library.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
-    val searchError by viewModel.searchError.collectAsState()
     val isOnline by viewModel.isOnline.collectAsState()
-    val isRefreshing by viewModel.isRefreshing.collectAsState()
+    val currentSearchQuery by viewModel.currentSearchQuery.collectAsState()
 
     var selectedTab by remember { mutableStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
     val keyboardController = LocalSoftwareKeyboardController.current
-    val coroutineScope= rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
 
 
-    LaunchedEffect(searchError) {
-        searchError?.let {
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let {
             snackbarHostState.showSnackbar(it)
         }
     }
@@ -98,11 +102,17 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                             tint = MaterialTheme.colorScheme.error
                         )
                     }
-                    IconButton(onClick =  { viewModel.clearLibrary() }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Clear Library")
-                    }
-                    IconButton(onClick = { viewModel.refreshLibrary() }) {
+                    var menuExpanded by remember { mutableStateOf(false) }
+                    IconButton(onClick = { menuExpanded = true }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false })
+                    {
+                        DropdownMenuItem(text = { Text("Refresh Library") }, onClick = { viewModel.refreshLibrary(); menuExpanded=false })
+                        DropdownMenuItem(text = { Text("Clear Library") }, onClick = { viewModel.clearLibrary(); menuExpanded=false })
+
                     }
                 }
             )
@@ -111,9 +121,11 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
         snackbarHost = { SnackbarHost(snackbarHostState) }
 
     ) { paddingValues ->
-        Column(modifier = Modifier
-            .padding(paddingValues)
-            .fillMaxWidth())
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxWidth()
+        )
         {
             OutlinedTextField(
                 value = searchQuery,
@@ -124,28 +136,34 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                 label = { Text("Search Books") },
                 trailingIcon = {
                     Row {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.clearSearch() }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear Search")
+                            }
+                        }
                         IconButton(onClick = {
                             selectedTab = 1
-                            viewModel.searchBooks()
+                            viewModel.searchBooks(isNewSearch = true)
                             keyboardController?.hide()
                         }) {
                             Icon(Icons.Default.Search, contentDescription = "Search")
                         }
-                    }    
+                    }
                 },
                 keyboardOptions = KeyboardOptions(
-                    imeAction = ImeAction.Search),
+                    imeAction = ImeAction.Search
+                ),
                 keyboardActions = KeyboardActions(
                     onSearch = {
                         selectedTab = 1
-                        viewModel.searchBooks()
+                        viewModel.searchBooks(isNewSearch = true)
                         keyboardController?.hide()
                     }
                 ),
                 singleLine = true
             )
             AnimatedVisibility(
-                visible = isSearching || isRefreshing,
+                visible = isSearching || uiState.isLoading,
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
@@ -157,7 +175,7 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text("My Library (${library.size})") }
+                    text = { Text("My Library (${uiState.data?.size ?: 0})") }
                 )
                 Tab(
                     selected = selectedTab == 1,
@@ -165,25 +183,26 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                     text = { Text("Search (${searchResults.size})") }
                 )
             }
-           when(selectedTab){
-               0->{
-                   LibraryTab(books = library, onDeleteBook = {viewModel.deleteBook(it)})
-               }
-               1->{
-                   SearchTab(
-                       searchQuery = searchQuery,
-                       searchResults = searchResults,
-                       isSearching = isSearching,
-                       onAddToLibrary = {result ->
+            when (selectedTab) {
+                0 -> {
+                    LibraryTab(books = uiState.data ?: emptyList(), onDeleteBook = { viewModel.deleteBook(it) })
+                }
+                1 -> {
+                    SearchTab(
+                        searchQuery = currentSearchQuery,
+                        searchResults = searchResults,
+                        isSearching = isSearching,
+                        onAddToLibrary = { result ->
                             viewModel.addLibrary(result)
                             coroutineScope.launch {
                                 snackbarHostState.currentSnackbarData?.dismiss()
                                 snackbarHostState.showSnackbar("Book added to library")
                             }
-                       }
-                   )
-               }
-           }
+                        },
+                        onLoadMore = { viewModel.loadMore() }
+                    )
+                }
+            }
         }
     }
 }
@@ -191,25 +210,28 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
 @Composable
 fun LibraryTab(
     books: List<BookEntity>,
-    onDeleteBook: (BookEntity) -> Unit) {
+    onDeleteBook: (BookEntity) -> Unit
+) {
     if (books.isEmpty()) {
-        Spacer(modifier = Modifier .padding(top = 30.dp))
+        Spacer(modifier = Modifier.padding(top = 30.dp))
         EmptyState(message = "Your  library is empty. \nSearch and add books!..")
-    }else   {
-        LazyColumn (
-            modifier = Modifier.fillMaxWidth() .padding(top = 10.dp),
+    } else {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(horizontal = 16.dp)
-        ){
-            items(books,key={it.id}){
-                book->
+        ) {
+            items(books, key = { it.id }) {
+                book ->
                 BookCard(
                     title = book.title,
                     author = book.author,
                     thumbnailUrl = book.thumbnailUrl,
                     description = book.description,
-                    onActionClick={onDeleteBook(book)},
-                   actionIcon=Icons.Default.Delete,
+                    onActionClick = { onDeleteBook(book) },
+                    actionIcon = Icons.Default.Delete,
                     actionContentDescription = "Remove from library"
                 )
             }
@@ -219,18 +241,32 @@ fun LibraryTab(
 }
 
 
-
 @Composable
 fun SearchTab(
     searchQuery: String,
     searchResults: List<SearchResultEntity>,
     isSearching: Boolean,
-    onAddToLibrary: (SearchResultEntity) -> Unit
+    onAddToLibrary: (SearchResultEntity) -> Unit,
+    onLoadMore: () -> Unit
 ) {
-    val listState = remember (searchQuery){
-        androidx.compose.foundation.lazy.LazyListState()
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(searchQuery) {
+        listState.scrollToItem(0)
     }
 
+    val shouldLoadMore by remember {
+        derivedStateOf {
+            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+            lastVisibleItem != null && lastVisibleItem.index == listState.layoutInfo.totalItemsCount - 1 && !isSearching
+        }
+    }
+
+    LaunchedEffect(shouldLoadMore) {
+        if (shouldLoadMore) {
+            onLoadMore()
+        }
+    }
 
     Box(
         modifier = Modifier.fillMaxSize(),
@@ -256,6 +292,18 @@ fun SearchTab(
                         actionContentDescription = "Add to library"
                     )
                 }
+                if (isSearching) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                }
             }
         }
 
@@ -264,6 +312,7 @@ fun SearchTab(
         }
     }
 }
+
 @Composable
 fun BookCard(
     title: String,
@@ -333,8 +382,6 @@ fun BookCard(
 
     }
 }
-
-
 
 
 @Composable

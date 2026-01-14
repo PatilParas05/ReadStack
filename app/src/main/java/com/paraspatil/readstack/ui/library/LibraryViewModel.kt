@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
@@ -26,7 +28,7 @@ import javax.inject.Inject
 class LibraryViewModel @Inject constructor(
     private val repository: BookRepository
 ) : ViewModel() {
-    private val _maxResults=20
+    private val _maxResults = 20
     private var searchJob: Job? = null
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
@@ -38,8 +40,9 @@ class LibraryViewModel @Inject constructor(
     val searchError = _searchError.asStateFlow()
 
     private val _currentSearchQuery = MutableStateFlow("")
+    val currentSearchQuery = _currentSearchQuery.asStateFlow()
 
-    private val _currentPage = MutableStateFlow(-1)
+    private val _currentPage = MutableStateFlow(0)
 
     val searchResults: StateFlow<List<SearchResultEntity>> = _currentSearchQuery
         .flatMapLatest { query ->
@@ -48,11 +51,11 @@ class LibraryViewModel @Inject constructor(
             } else {
                 repository.getSearchResults(query)
             }
-            }.stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000),
-                initialValue = emptyList()
-            )
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     val library: StateFlow<List<BookEntity>> = repository.getLibrary()
         .stateIn(
@@ -61,10 +64,10 @@ class LibraryViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    private val _isRefreshing= MutableStateFlow(false)
-    val isRefreshing=_isRefreshing.asStateFlow()
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing = _isRefreshing.asStateFlow()
 
-    val isOnline:StateFlow<Boolean> = repository.isOnline()
+    val isOnline: StateFlow<Boolean> = repository.isOnline()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -76,12 +79,11 @@ class LibraryViewModel @Inject constructor(
         _searchError,
         isOnline
 
-    ){
-        books,loading,error,online->
+    ) { books, loading, error, online ->
         UiState(
-            data=books,
+            data = books,
             isLoading = loading,
-            error=error,
+            error = error,
             isOffline = !online
         )
     }.stateIn(
@@ -90,85 +92,110 @@ class LibraryViewModel @Inject constructor(
         initialValue = UiState()
     )
 
-    fun onSearchQueryChange(newQuery:String){
-        _searchQuery.value=newQuery
-
-        if (newQuery!=_currentSearchQuery.value){
-            _currentPage.value=-1
+    init {
+        viewModelScope.launch {
+            _searchQuery
+                .debounce(500L)
+                .distinctUntilChanged()
+                .collect { query ->
+                    if (query.length >= 2) {
+                        searchBooks(isNewSearch = true)
+                    } else if (query.isBlank()) {
+                        clearSearch()
+                    }
+                }
         }
+    }
 
-        }
+    fun onSearchQueryChange(newQuery: String) {
+        _searchQuery.value = newQuery
+    }
 
-    fun searchBooks(){
-        val query=searchQuery.value.trim()
-        if (query.isBlank()){
-            _searchError.value="Please enter a search term"
+    fun searchBooks(isNewSearch: Boolean) {
+        val query = _searchQuery.value.trim()
+        if (query.isBlank()) {
+            clearSearch()
             return
         }
 
-            searchJob?.cancel()
-        searchJob=viewModelScope.launch {
-            _isSearching.value=true
+        if (isNewSearch && query == _currentSearchQuery.value) return
+
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            _isSearching.value = true
             _searchError.value = null
 
-            _currentPage.value +=1
-
+            if (isNewSearch) {
+                _currentPage.value = 0
+                _currentSearchQuery.value = query
+            } else {
+                _currentPage.value++
+            }
 
             val startIndex = _currentPage.value * _maxResults
-            _currentSearchQuery.value=query
 
-            when (val result=repository.searchBooksWithPagination(
-                query=query,
-                startIndex=startIndex,
+            when (val result = repository.searchBooksWithPagination(
+                query = query,
+                startIndex = startIndex,
                 maxResults = _maxResults,
-                shouldReplace=true
-
-            )){
-                is NetworkResult.Success->{
+                shouldReplace = isNewSearch
+            )) {
+                is NetworkResult.Success -> {
                     _searchError.value = null
                 }
-                is NetworkResult.Error->{
-                    _searchError.value=result.message
-                    _currentPage.value -= 1
+                is NetworkResult.Error -> {
+                    _searchError.value = result.message
+                    if (!isNewSearch) _currentPage.value--
                 }
-                is NetworkResult.Offline->{
-                    _searchError.value="No internet connection. Showing cached results"
-                    _currentPage.value -= 1
+                is NetworkResult.Offline -> {
+                    _searchError.value = "No internet connection. Showing cached results"
+                    if (!isNewSearch) _currentPage.value--
                 }
-                is NetworkResult.Loading->{}
+                is NetworkResult.Loading -> {}
             }
-            _isSearching.value=false
-
+            _isSearching.value = false
         }
     }
-    fun clearSearch(){
-        _searchQuery.value=""
-        _currentSearchQuery.value=""
-        _searchError.value=null
-        searchJob?.cancel()
+
+    fun loadMore() {
+        if (!isSearching.value) {
+            searchBooks(isNewSearch = false)
+        }
     }
-    fun addLibrary(searchResultEntity: SearchResultEntity){
+
+    fun clearSearch() {
+        _searchQuery.value = ""
+        _currentSearchQuery.value = ""
+        _searchError.value = null
+        _currentPage.value = 0
+        searchJob?.cancel()
         viewModelScope.launch {
-            val bookEntity=searchResultEntity.toBookEntity()
+            repository.clearSearchCache("")
+        }
+    }
+
+    fun addLibrary(searchResultEntity: SearchResultEntity) {
+        viewModelScope.launch {
+            val bookEntity = searchResultEntity.toBookEntity()
             repository.addBookToLibrary(bookEntity)
         }
-
     }
-    fun deleteBook(book: BookEntity){
+
+    fun deleteBook(book: BookEntity) {
         viewModelScope.launch {
             repository.deleteBook(book)
         }
     }
-    fun refreshLibrary(){
-        viewModelScope.launch {
-            _isRefreshing.value=true
-            repository.syncLibrary()
-            _isRefreshing.value=false
-        }
 
+    fun refreshLibrary() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            repository.syncLibrary()
+            _isRefreshing.value = false
+        }
     }
 
-    fun clearLibrary(){
+    fun clearLibrary() {
         viewModelScope.launch {
             repository.clearLibrary()
         }
