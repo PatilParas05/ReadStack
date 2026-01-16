@@ -19,8 +19,8 @@ data class VolumeInfoDto(
     val title: String,
     val authors: List<String> ? = null,
     val description: String? = null,
-    val imageLinks: ImageLinksDto?? = null,
-    val pageCount: Int?? = null,
+    val imageLinks: ImageLinksDto? = null,
+    val pageCount: Int? = null,
     val publishedDate: String? = null
 )
 @Serializable

@@ -1,9 +1,12 @@
 package com.paraspatil.readstack.ui.library
 
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -71,6 +75,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(viewModel: LibraryViewModel) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
@@ -185,7 +190,14 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
             }
             when (selectedTab) {
                 0 -> {
-                    LibraryTab(books = uiState.data ?: emptyList(), onDeleteBook = { viewModel.deleteBook(it) })
+                    LibraryTab(books = uiState.data ?: emptyList(), onDeleteBook = { viewModel.deleteBook(it) },
+                        onBookClick= {book ->
+                        val intent = Intent(Intent.ACTION_VIEW).apply {
+                            data=Uri.parse("https://books.google.com/book?id=${book.id}")
+                           }
+                            context.startActivity(intent)
+                        }
+                    )
                 }
                 1 -> {
                     SearchTab(
@@ -199,7 +211,13 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                                 snackbarHostState.showSnackbar("Book added to library")
                             }
                         },
-                        onLoadMore = { viewModel.loadMore() }
+                        onLoadMore = { viewModel.loadMore() },
+                        onBookClick={result ->
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                            data=Uri.parse("https://books.google.com/book?id=${result.id}")
+                        }
+                            context.startActivity(intent)
+                        }
                     )
                 }
             }
@@ -210,7 +228,8 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
 @Composable
 fun LibraryTab(
     books: List<BookEntity>,
-    onDeleteBook: (BookEntity) -> Unit
+    onDeleteBook: (BookEntity) -> Unit,
+    onBookClick: (BookEntity) -> Unit
 ) {
     if (books.isEmpty()) {
         Spacer(modifier = Modifier.padding(top = 30.dp))
@@ -232,7 +251,8 @@ fun LibraryTab(
                     description = book.description,
                     onActionClick = { onDeleteBook(book) },
                     actionIcon = Icons.Default.Delete,
-                    actionContentDescription = "Remove from library"
+                    actionContentDescription = "Remove from library",
+                    onCardClick = { onBookClick(book) }
                 )
             }
 
@@ -247,7 +267,8 @@ fun SearchTab(
     searchResults: List<SearchResultEntity>,
     isSearching: Boolean,
     onAddToLibrary: (SearchResultEntity) -> Unit,
-    onLoadMore: () -> Unit
+    onLoadMore: () -> Unit,
+    onBookClick: (SearchResultEntity) -> Unit
 ) {
     val listState = rememberLazyListState()
 
@@ -289,7 +310,8 @@ fun SearchTab(
                         description = result.description,
                         onActionClick = { onAddToLibrary(result) },
                         actionIcon = Icons.Default.Add,
-                        actionContentDescription = "Add to library"
+                        actionContentDescription = "Add to library",
+                        onCardClick = { onBookClick(result) }
                     )
                 }
                 if (isSearching) {
@@ -307,11 +329,9 @@ fun SearchTab(
             }
         }
 
-        if (isSearching && searchResults.isEmpty()) {
-            CircularProgressIndicator()
-        }
     }
 }
+
 
 @Composable
 fun BookCard(
@@ -321,11 +341,13 @@ fun BookCard(
     description: String?,
     onActionClick: () -> Unit,
     actionIcon: androidx.compose.ui.graphics.vector.ImageVector,
-    actionContentDescription: String
+    actionContentDescription: String,
+    onCardClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
-            .fillMaxWidth(),
+            .fillMaxWidth()
+            .clickable { onCardClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(

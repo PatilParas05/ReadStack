@@ -71,7 +71,7 @@ class LibraryViewModel @Inject constructor(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = false
+            initialValue = true
         )
     val uiState: StateFlow<UiState<List<BookEntity>>> = combine(
         library,
