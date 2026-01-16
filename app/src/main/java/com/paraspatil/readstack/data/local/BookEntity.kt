@@ -13,5 +13,6 @@ data class BookEntity(
     val description : String?,
     val pageCount:Int?,
     val publishedDate: String?,
-    val timestamp: Long=System.currentTimeMillis()
+    val timestamp: Long=System.currentTimeMillis(),
+    val previewLink: String?
 )

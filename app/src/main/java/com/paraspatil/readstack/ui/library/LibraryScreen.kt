@@ -192,10 +192,11 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                 0 -> {
                     LibraryTab(books = uiState.data ?: emptyList(), onDeleteBook = { viewModel.deleteBook(it) },
                         onBookClick= {book ->
-                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                            data=Uri.parse("https://books.google.com/book?id=${book.id}")
-                           }
+                        book.previewLink?.let{url ->
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                             context.startActivity(intent)
+                            }
+
                         }
                     )
                 }
@@ -213,10 +214,10 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                         },
                         onLoadMore = { viewModel.loadMore() },
                         onBookClick={result ->
-                            val intent = Intent(Intent.ACTION_VIEW).apply {
-                            data=Uri.parse("https://books.google.com/book?id=${result.id}")
-                        }
-                            context.startActivity(intent)
+                            result.previewLink?.let{url ->
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                context.startActivity(intent)
+                            }
                         }
                     )
                 }

@@ -21,7 +21,9 @@ data class VolumeInfoDto(
     val description: String? = null,
     val imageLinks: ImageLinksDto? = null,
     val pageCount: Int? = null,
-    val publishedDate: String? = null
+    val publishedDate: String? = null,
+    val previewLink: String? = null
+
 )
 @Serializable
 data class ImageLinksDto(
@@ -36,7 +38,8 @@ fun BookItemDto.toEntity(): BookEntity {
         thumbnailUrl = volumeInfo.imageLinks?.thumbnail ?.replace("http:","https:")?:"",
         description = volumeInfo.description,
         pageCount = volumeInfo.pageCount,
-        publishedDate = volumeInfo.publishedDate
+        publishedDate = volumeInfo.publishedDate,
+        previewLink = volumeInfo.previewLink
 
 
     )
@@ -51,7 +54,8 @@ fun BookItemDto.toSearchResultEntity(searchQuery: String): SearchResultEntity {
         description = volumeInfo.description,
         pageCount = volumeInfo.pageCount,
         publishedDate = volumeInfo.publishedDate,
-        searchQuery = searchQuery
+        searchQuery = searchQuery,
+        previewLink = volumeInfo.previewLink
     )
 }
 
@@ -63,6 +67,7 @@ fun SearchResultEntity.toBookEntity(): BookEntity{
     thumbnailUrl = thumbnailUrl,
     description = description,
     pageCount = pageCount,
-    publishedDate = publishedDate
+    publishedDate = publishedDate,
+        previewLink = previewLink
     )
 }

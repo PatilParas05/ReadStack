@@ -14,6 +14,8 @@ data class SearchResultEntity(
     val pageCount: Int?,
     val publishedDate: String?,
     val searchQuery: String,
-    val timestamp: Long=System.currentTimeMillis()
+    val timestamp: Long=System.currentTimeMillis(),
+    val previewLink: String?
+
 
 )
