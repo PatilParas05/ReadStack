@@ -248,7 +248,7 @@ fun LibraryTab(
                 BookCard(
                     title = book.title,
                     author = book.author,
-                    thumbnailUrl = book.thumbnailUrl,
+                    thumbnailUrl = book.thumbnailUrl ?:"",
                     description = book.description,
                     onActionClick = { onDeleteBook(book) },
                     actionIcon = Icons.Default.Delete,
