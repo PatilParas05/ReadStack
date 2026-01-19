@@ -311,24 +311,10 @@ fun SearchTab(
                         onInfoClick = null
                     )
                 }
-                if (isSearching) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
-                        }
-                    }
-                }
+
             }
         }
 
-        if (isSearching && searchResults.isEmpty()) {
-            CircularProgressIndicator()
-        }
     }
 }
 
@@ -397,7 +383,7 @@ fun BookCard(
                 Icon(
                     imageVector = actionIcon,
                     contentDescription = actionContentDescription,
-                    tint = if (actionIcon == Icons.Default.Delete) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                    tint = if (actionIcon == Icons.Default.Delete)MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                 )
             }
                 onInfoClick?.let {
