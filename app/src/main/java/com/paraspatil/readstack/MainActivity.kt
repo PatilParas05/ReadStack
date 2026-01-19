@@ -4,9 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.paraspatil.readstack.ui.library.LibraryScreen
-import com.paraspatil.readstack.ui.library.LibraryViewModel
+import com.paraspatil.readstack.navigation.AppNavigation
 import com.paraspatil.readstack.ui.theme.ReadStackTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -17,8 +15,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             ReadStackTheme {
-                val viewModel: LibraryViewModel = hiltViewModel()
-                LibraryScreen(viewModel = viewModel)
+                AppNavigation()
             }
         }
     }

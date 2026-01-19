@@ -5,7 +5,7 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [BookEntity::class, SearchResultEntity::class],
-    version = 3,
+    version = 2,
     exportSchema = false
 
 )

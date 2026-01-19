@@ -2,9 +2,9 @@ package com.paraspatil.readstack.ui.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.paraspatil.readstack.data.local.BookEntity
-import com.paraspatil.readstack.data.local.SearchResultEntity
-import com.paraspatil.readstack.data.remote.toBookEntity
+import com.paraspatil.readstack.domain.model.Book
+import com.paraspatil.readstack.domain.model.toDomain
+import com.paraspatil.readstack.domain.model.toEntity
 import com.paraspatil.readstack.domain.repository.BookRepository
 import com.paraspatil.readstack.domain.util.NetworkResult
 import com.paraspatil.readstack.domain.util.UiState
@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -37,19 +38,18 @@ class LibraryViewModel @Inject constructor(
     val isSearching = _isSearching.asStateFlow()
 
     private val _searchError = MutableStateFlow<String?>(null)
-    val searchError = _searchError.asStateFlow()
 
     private val _currentSearchQuery = MutableStateFlow("")
     val currentSearchQuery = _currentSearchQuery.asStateFlow()
 
     private val _currentPage = MutableStateFlow(0)
 
-    val searchResults: StateFlow<List<SearchResultEntity>> = _currentSearchQuery
+    val searchResults: StateFlow<List<Book>> = _currentSearchQuery
         .flatMapLatest { query ->
             if (query.isBlank()) {
                 flowOf(emptyList())
             } else {
-                repository.getSearchResults(query)
+                repository.getSearchResults(query).map { list -> list.map { it.toDomain() } }
             }
         }.stateIn(
             scope = viewModelScope,
@@ -57,24 +57,16 @@ class LibraryViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    val library: StateFlow<List<BookEntity>> = repository.getLibrary()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-
     private val _isRefreshing = MutableStateFlow(false)
-    val isRefreshing = _isRefreshing.asStateFlow()
 
     val isOnline: StateFlow<Boolean> = repository.isOnline()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = true
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = false
         )
-    val uiState: StateFlow<UiState<List<BookEntity>>> = combine(
-        library,
+    val uiState: StateFlow<UiState<List<Book>>> = combine(
+        repository.getLibrary().map { it.map { it.toDomain() } },
         _isRefreshing,
         _searchError,
         isOnline
@@ -174,16 +166,15 @@ class LibraryViewModel @Inject constructor(
         }
     }
 
-    fun addLibrary(searchResultEntity: SearchResultEntity) {
+    fun addLibrary(book: Book) {
         viewModelScope.launch {
-            val bookEntity = searchResultEntity.toBookEntity()
-            repository.addBookToLibrary(bookEntity)
+            repository.addBookToLibrary(book.toEntity())
         }
     }
 
-    fun deleteBook(book: BookEntity) {
+    fun deleteBook(book: Book) {
         viewModelScope.launch {
-            repository.deleteBook(book)
+            repository.deleteBook(book.toEntity())
         }
     }
 

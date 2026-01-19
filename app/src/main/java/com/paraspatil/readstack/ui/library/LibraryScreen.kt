@@ -1,8 +1,6 @@
 package com.paraspatil.readstack.ui.library
 
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -19,7 +17,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
@@ -29,7 +26,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -61,26 +59,26 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.paraspatil.readstack.data.local.BookEntity
-import com.paraspatil.readstack.data.local.SearchResultEntity
+import com.paraspatil.readstack.domain.model.Book
 import kotlinx.coroutines.launch
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(viewModel: LibraryViewModel) {
-    val context = LocalContext.current
+fun LibraryScreen(
+    viewModel: LibraryViewModel,
+    onInfoClick: (String) -> Unit,
+    onBookClick: (Book) -> Unit
+) {
     val uiState by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
-    val isOnline by viewModel.isOnline.collectAsState()
     val currentSearchQuery by viewModel.currentSearchQuery.collectAsState()
 
     var selectedTab by remember { mutableStateOf(0) }
@@ -100,7 +98,7 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
             TopAppBar(
                 title = { Text("ReadStack") },
                 actions = {
-                    if (!isOnline) {
+                    if (uiState.isOffline) {
                         Icon(
                             Icons.Default.CloudOff,
                             contentDescription = "Offline",
@@ -109,14 +107,14 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                     }
                     var menuExpanded by remember { mutableStateOf(false) }
                     IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                        Icon(Icons.Default.MoreVert, contentDescription = "More Options")
                     }
                     DropdownMenu(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false })
                     {
-                        DropdownMenuItem(text = { Text("Refresh Library") }, onClick = { viewModel.refreshLibrary(); menuExpanded=false })
-                        DropdownMenuItem(text = { Text("Clear Library") }, onClick = { viewModel.clearLibrary(); menuExpanded=false })
+                        DropdownMenuItem(text = { Text("Refresh Library") }, onClick = { viewModel.refreshLibrary(); menuExpanded = false })
+                        DropdownMenuItem(text = { Text("Clear Library") }, onClick = { viewModel.clearLibrary(); menuExpanded = false })
 
                     }
                 }
@@ -141,18 +139,21 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                 label = { Text("Search Books") },
                 trailingIcon = {
                     Row {
-                        if (searchQuery.isNotEmpty()) {
+                        AnimatedVisibility(visible = searchQuery.isNotEmpty()) {
                             IconButton(onClick = { viewModel.clearSearch() }) {
                                 Icon(Icons.Default.Clear, contentDescription = "Clear Search")
                             }
                         }
-                        IconButton(onClick = {
-                            selectedTab = 1
-                            viewModel.searchBooks(isNewSearch = true)
-                            keyboardController?.hide()
-                        }) {
-                            Icon(Icons.Default.Search, contentDescription = "Search")
+                        AnimatedVisibility(visible = !isSearching) {
+                            IconButton(onClick = {
+                                selectedTab = 1
+                                viewModel.searchBooks(isNewSearch = true)
+                                keyboardController?.hide()
+                            }) {
+                                Icon(Icons.Default.Search, contentDescription = "Search")
+                            }
                         }
+
                     }
                 },
                 keyboardOptions = KeyboardOptions(
@@ -191,13 +192,8 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
             when (selectedTab) {
                 0 -> {
                     LibraryTab(books = uiState.data ?: emptyList(), onDeleteBook = { viewModel.deleteBook(it) },
-                        onBookClick= {book ->
-                        book.previewLink?.let{url ->
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                            context.startActivity(intent)
-                            }
-
-                        }
+                        onBookClick = onBookClick,
+                        onInfoClick = onInfoClick
                     )
                 }
                 1 -> {
@@ -213,12 +209,8 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
                             }
                         },
                         onLoadMore = { viewModel.loadMore() },
-                        onBookClick={result ->
-                            result.previewLink?.let{url ->
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                                context.startActivity(intent)
-                            }
-                        }
+                        onBookClick = onBookClick
+
                     )
                 }
             }
@@ -228,9 +220,10 @@ fun LibraryScreen(viewModel: LibraryViewModel) {
 
 @Composable
 fun LibraryTab(
-    books: List<BookEntity>,
-    onDeleteBook: (BookEntity) -> Unit,
-    onBookClick: (BookEntity) -> Unit
+    books: List<Book>,
+    onDeleteBook: (Book) -> Unit,
+    onBookClick: (Book) -> Unit,
+    onInfoClick: (String) -> Unit
 ) {
     if (books.isEmpty()) {
         Spacer(modifier = Modifier.padding(top = 30.dp))
@@ -248,12 +241,14 @@ fun LibraryTab(
                 BookCard(
                     title = book.title,
                     author = book.author,
-                    thumbnailUrl = book.thumbnailUrl ?:"",
+                    thumbnailUrl = book.thumbnailUrl ?: "",
                     description = book.description,
                     onActionClick = { onDeleteBook(book) },
                     actionIcon = Icons.Default.Delete,
                     actionContentDescription = "Remove from library",
-                    onCardClick = { onBookClick(book) }
+                    onCardClick = { onBookClick(book) },
+                    onInfoClick = { onInfoClick(book.id) }
+
                 )
             }
 
@@ -265,16 +260,16 @@ fun LibraryTab(
 @Composable
 fun SearchTab(
     searchQuery: String,
-    searchResults: List<SearchResultEntity>,
+    searchResults: List<Book>,
     isSearching: Boolean,
-    onAddToLibrary: (SearchResultEntity) -> Unit,
+    onAddToLibrary: (Book) -> Unit,
     onLoadMore: () -> Unit,
-    onBookClick: (SearchResultEntity) -> Unit
+    onBookClick: (Book) -> Unit
 ) {
     val listState = rememberLazyListState()
 
     LaunchedEffect(searchQuery) {
-        listState.scrollToItem(0)
+        if (searchQuery.isNotEmpty())listState.scrollToItem(0)
     }
 
     val shouldLoadMore by remember {
@@ -307,12 +302,13 @@ fun SearchTab(
                     BookCard(
                         title = result.title,
                         author = result.author,
-                        thumbnailUrl = result.thumbnailUrl,
+                        thumbnailUrl = result.thumbnailUrl ?: "",
                         description = result.description,
                         onActionClick = { onAddToLibrary(result) },
                         actionIcon = Icons.Default.Add,
                         actionContentDescription = "Add to library",
-                        onCardClick = { onBookClick(result) }
+                        onCardClick = { onBookClick(result) },
+                        onInfoClick = null
                     )
                 }
                 if (isSearching) {
@@ -330,20 +326,23 @@ fun SearchTab(
             }
         }
 
+        if (isSearching && searchResults.isEmpty()) {
+            CircularProgressIndicator()
+        }
     }
 }
-
 
 @Composable
 fun BookCard(
     title: String,
     author: String,
     thumbnailUrl: String,
-    description: String?,
+    description: String,
     onActionClick: () -> Unit,
     actionIcon: androidx.compose.ui.graphics.vector.ImageVector,
     actionContentDescription: String,
-    onCardClick: () -> Unit
+    onCardClick: () -> Unit,
+    onInfoClick: (() -> Unit)?
 ) {
     Card(
         modifier = Modifier
@@ -382,7 +381,7 @@ fun BookCard(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                if (description != null) {
+                if (description.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = description,
@@ -393,18 +392,29 @@ fun BookCard(
                     )
                 }
             }
+            Column() {
             IconButton(onClick = onActionClick) {
                 Icon(
                     imageVector = actionIcon,
                     contentDescription = actionContentDescription,
-                    tint = MaterialTheme.colorScheme.primary
-
+                    tint = if (actionIcon == Icons.Default.Delete) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                 )
             }
-        }
+                onInfoClick?.let {
+                    IconButton(onClick = it) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "Book Details",
+                            tint = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
+            }
 
+        }
     }
 }
+
 
 
 @Composable
