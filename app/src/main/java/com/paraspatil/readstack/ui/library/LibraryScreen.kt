@@ -2,8 +2,10 @@ package com.paraspatil.readstack.ui.library
 
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +44,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -97,13 +100,6 @@ fun LibraryScreen(
             TopAppBar(
                 title = { Text("ReadStack") },
                 actions = {
-                    if (uiState.isOffline) {
-                        Icon(
-                            Icons.Default.CloudOff,
-                            contentDescription = "Offline",
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
                     var menuExpanded by remember { mutableStateOf(false) }
                     IconButton(onClick = { menuExpanded = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "More Options")
@@ -129,6 +125,7 @@ fun LibraryScreen(
                 .fillMaxWidth()
         )
         {
+            OfflineBanner(isOffline = uiState.isOffline)
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.onSearchQueryChange(it) },
@@ -399,7 +396,6 @@ fun BookCard(
 }
 
 
-
 @Composable
 fun EmptyState(message: String) {
     Box(
@@ -411,5 +407,38 @@ fun EmptyState(message: String) {
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+    }
+}
+@Composable
+fun OfflineBanner(isOffline: Boolean){
+    AnimatedVisibility(
+        visible = isOffline,
+        enter = expandVertically(),
+        exit = shrinkVertically()
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.errorContainer,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(vertical = 4.dp, horizontal = 16.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CloudOff,
+                    contentDescription = "Offline",
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onErrorContainer
+                )
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(
+                    text ="No Internet Connection",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+            }
+        }
     }
 }

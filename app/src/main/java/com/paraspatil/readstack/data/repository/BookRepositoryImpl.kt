@@ -1,5 +1,10 @@
 package com.paraspatil.readstack.data.repository
 
+
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import com.paraspatil.readstack.data.local.BookDao
 import com.paraspatil.readstack.data.local.BookEntity
 import com.paraspatil.readstack.data.local.SearchResultEntity
@@ -9,8 +14,12 @@ import com.paraspatil.readstack.data.remote.toSearchResultEntity
 import com.paraspatil.readstack.data.util.NetworkMonitor
 import com.paraspatil.readstack.domain.repository.BookRepository
 import com.paraspatil.readstack.domain.util.NetworkResult
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,7 +28,8 @@ import javax.inject.Singleton
 class BookRepositoryImpl @Inject constructor(
     private val api: GoogleBookApi,
     private val dao: BookDao,
-    private val networkMonitor: NetworkMonitor
+    private val networkMonitor: NetworkMonitor,
+    @ApplicationContext private val context: Context
 ) : BookRepository {
 
     override fun getLibrary(): Flow<List<BookEntity>> {
@@ -128,7 +138,28 @@ class BookRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun isOnline(): Flow<Boolean> {
-        return networkMonitor.isOnline
+    override fun isOnline(): Flow<Boolean> = callbackFlow {
+        val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+        val callback = object : ConnectivityManager.NetworkCallback(){
+        override fun onAvailable(network: Network) {
+            trySend(true)
+        }
+        override fun onLost(network: Network){
+            trySend(false)
+        }
+        override fun onUnavailable() {
+            trySend(false)
+        }
     }
+
+    manager.registerDefaultNetworkCallback(callback)
+    val activeNetwork = manager.activeNetwork
+        val capabilities = manager.getNetworkCapabilities(activeNetwork)
+    val isCurrentlyOnline = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+    trySend(isCurrentlyOnline)
+    awaitClose{
+        manager.unregisterNetworkCallback(callback)
+        }
+    }.distinctUntilChanged()
 }

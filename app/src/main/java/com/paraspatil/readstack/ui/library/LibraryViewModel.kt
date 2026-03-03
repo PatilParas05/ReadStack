@@ -76,8 +76,7 @@ class LibraryViewModel @Inject constructor(
         repository.getLibrary().map { it.map { it.toDomain() } },
         _isRefreshing,
         _searchError,
-        isOnline
-
+        repository.isOnline()
     ) { books, loading, error, online ->
         UiState(
             data = books,
