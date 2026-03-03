@@ -9,9 +9,7 @@ plugins {
 
 android {
     namespace = "com.paraspatil.readstack"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk =36
 
     defaultConfig {
         applicationId = "com.paraspatil.readstack"

@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -79,7 +78,7 @@ fun LibraryScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
-    val currentSearchQuery by viewModel.currentSearchQuery.collectAsState()
+
 
     var selectedTab by remember { mutableStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -147,7 +146,6 @@ fun LibraryScreen(
                         AnimatedVisibility(visible = !isSearching) {
                             IconButton(onClick = {
                                 selectedTab = 1
-                                viewModel.searchBooks(isNewSearch = true)
                                 keyboardController?.hide()
                             }) {
                                 Icon(Icons.Default.Search, contentDescription = "Search")
@@ -162,7 +160,6 @@ fun LibraryScreen(
                 keyboardActions = KeyboardActions(
                     onSearch = {
                         selectedTab = 1
-                        viewModel.searchBooks(isNewSearch = true)
                         keyboardController?.hide()
                     }
                 ),
@@ -198,7 +195,7 @@ fun LibraryScreen(
                 }
                 1 -> {
                     SearchTab(
-                        searchQuery = currentSearchQuery,
+                        searchQuery = searchQuery,
                         searchResults = searchResults,
                         isSearching = isSearching,
                         onAddToLibrary = { result ->

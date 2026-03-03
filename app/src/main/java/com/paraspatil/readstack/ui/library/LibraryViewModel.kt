@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.collections.emptyList
 
 
 @HiltViewModel
@@ -39,23 +40,29 @@ class LibraryViewModel @Inject constructor(
 
     private val _searchError = MutableStateFlow<String?>(null)
 
-    private val _currentSearchQuery = MutableStateFlow("")
-    val currentSearchQuery = _currentSearchQuery.asStateFlow()
 
     private val _currentPage = MutableStateFlow(0)
 
-    val searchResults: StateFlow<List<Book>> = _currentSearchQuery
+    val searchResults: StateFlow<List<Book>> = _searchQuery
+        .debounce(500L)
+        .distinctUntilChanged()
         .flatMapLatest { query ->
-            if (query.isBlank()) {
+            val trimmedQuery = query.trim()
+            if (trimmedQuery.length < 2){
+                _isSearching.value = false
                 flowOf(emptyList())
-            } else {
-                repository.getSearchResults(query).map { list -> list.map { it.toDomain() } }
+            }else{
+                executeSearch(trimmedQuery,isNewSearch = true)
+                    repository.getSearchResults(trimmedQuery)
+                    .map{
+                        list -> list.map { it.toDomain() }}
+                    }
             }
-        }.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+                .stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5000),
+                    initialValue = emptyList()
+                )
 
     private val _isRefreshing = MutableStateFlow(false)
 
@@ -84,34 +91,11 @@ class LibraryViewModel @Inject constructor(
         initialValue = UiState()
     )
 
-    init {
-        viewModelScope.launch {
-            _searchQuery
-                .debounce(500L)
-                .distinctUntilChanged()
-                .collect { query ->
-                    if (query.length >= 2) {
-                        searchBooks(isNewSearch = true)
-                    } else if (query.isBlank()) {
-                        clearSearch()
-                    }
-                }
-        }
-    }
-
     fun onSearchQueryChange(newQuery: String) {
         _searchQuery.value = newQuery
     }
 
-    fun searchBooks(isNewSearch: Boolean) {
-        val query = _searchQuery.value.trim()
-        if (query.isBlank()) {
-            clearSearch()
-            return
-        }
-
-        if (isNewSearch && query == _currentSearchQuery.value) return
-
+    private fun executeSearch(query:String,isNewSearch: Boolean) {
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
             _isSearching.value = true
@@ -119,7 +103,6 @@ class LibraryViewModel @Inject constructor(
 
             if (isNewSearch) {
                 _currentPage.value = 0
-                _currentSearchQuery.value = query
             } else {
                 _currentPage.value++
             }
@@ -150,16 +133,17 @@ class LibraryViewModel @Inject constructor(
     }
 
     fun loadMore() {
-        if (!isSearching.value) {
-            searchBooks(isNewSearch = false)
+        val query = _searchQuery.value.trim()
+        if (!isSearching.value && query.length >= 2) {
+            executeSearch(query,isNewSearch = false)
         }
     }
 
     fun clearSearch() {
         _searchQuery.value = ""
-        _currentSearchQuery.value = ""
         _searchError.value = null
         _currentPage.value = 0
+        _isSearching.value = false
         searchJob?.cancel()
         viewModelScope.launch {
             repository.clearSearchCache("")
