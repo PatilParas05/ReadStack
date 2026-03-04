@@ -156,9 +156,9 @@ class BookRepositoryImpl @Inject constructor(
     manager.registerDefaultNetworkCallback(callback)
     val activeNetwork = manager.activeNetwork
         val capabilities = manager.getNetworkCapabilities(activeNetwork)
-    val isCurrentlyOnline = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-    trySend(isCurrentlyOnline)
-    awaitClose{
+    val isInitiallyOnline = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+    trySend(isInitiallyOnline)
+        awaitClose{
         manager.unregisterNetworkCallback(callback)
         }
     }.distinctUntilChanged()

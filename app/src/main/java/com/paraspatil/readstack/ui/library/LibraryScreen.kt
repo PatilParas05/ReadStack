@@ -67,6 +67,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.paraspatil.readstack.domain.model.Book
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 
@@ -411,13 +412,39 @@ fun EmptyState(message: String) {
 }
 @Composable
 fun OfflineBanner(isOffline: Boolean){
+    var showConnectedMessage by remember { mutableStateOf(false) }
+    var isFirstLoad by remember { mutableStateOf(true) }
+    LaunchedEffect(isOffline) {
+        if (isFirstLoad){
+            isFirstLoad = false
+            return@LaunchedEffect
+        }
+        if (!isOffline) {
+            showConnectedMessage = true
+            delay(5000)
+            showConnectedMessage = false
+            }
+    }
     AnimatedVisibility(
-        visible = isOffline,
+        visible = isOffline || showConnectedMessage,
         enter = expandVertically(),
         exit = shrinkVertically()
     ) {
+        val isBackOnline = !isOffline
+        val backgroundColor = if (isBackOnline) {
+            androidx.compose.ui.graphics.Color(0xFF4CAF50)
+        }else{
+                MaterialTheme.colorScheme.errorContainer
+            }
+
+        val contentColor = if (isBackOnline) {
+            androidx.compose.ui.graphics.Color.White
+        }else{
+            MaterialTheme.colorScheme.onErrorContainer
+        }
+
         Surface(
-            color = MaterialTheme.colorScheme.errorContainer,
+            color = backgroundColor,
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
@@ -427,16 +454,16 @@ fun OfflineBanner(isOffline: Boolean){
 
             ) {
                 Icon(
-                    imageVector = Icons.Default.CloudOff,
-                    contentDescription = "Offline",
+                    imageVector = if (isBackOnline) Icons.Default.Search else Icons.Default.CloudOff,
+                    contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.onErrorContainer
+                    tint = contentColor
                 )
                 Spacer(modifier = Modifier.size(8.dp))
                 Text(
-                    text ="No Internet Connection",
+                    text = if (isBackOnline)"Back Online" else "No Internet Connection",
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onErrorContainer
+                    color = contentColor
                     )
             }
         }

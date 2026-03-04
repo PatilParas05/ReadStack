@@ -9,6 +9,8 @@ import com.paraspatil.readstack.domain.repository.BookRepository
 import com.paraspatil.readstack.domain.util.NetworkResult
 import com.paraspatil.readstack.domain.util.UiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -25,7 +27,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import kotlin.collections.emptyList
 
-
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val repository: BookRepository
@@ -54,11 +56,10 @@ class LibraryViewModel @Inject constructor(
             }else{
                 executeSearch(trimmedQuery,isNewSearch = true)
                     repository.getSearchResults(trimmedQuery)
-                    .map{
-                        list -> list.map { it.toDomain() }}
-                    }
+                    .map{ list -> list.map { it.toDomain() }}
+                }
             }
-                .stateIn(
+            .stateIn(
                     scope = viewModelScope,
                     started = SharingStarted.WhileSubscribed(5000),
                     initialValue = emptyList()
@@ -70,7 +71,7 @@ class LibraryViewModel @Inject constructor(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = false
+            initialValue = true
         )
     val uiState: StateFlow<UiState<List<Book>>> = combine(
         repository.getLibrary().map { it.map { it.toDomain() } },
