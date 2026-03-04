@@ -96,6 +96,14 @@ fun LibraryScreen(
     val coroutineScope = rememberCoroutineScope()
 
 
+    LaunchedEffect(uiState.data?.size) {
+       if (uiState.data?.size==1){
+           snackbarHostState.showSnackbar(
+               message = "Tip: Swipe left on book to delete it",
+               withDismissAction = true
+           )
+       }
+    }
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
             snackbarHostState.showSnackbar(it)
@@ -267,12 +275,22 @@ fun LibraryTab(
                                 .padding(horizontal = 20.dp),
                             contentAlignment = Alignment.CenterEnd
                         ) {
-                            if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Delete Book",
-                                    tint = Color.White
-                                )
+                            if (dismissState.progress > 0.1f && dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "Release to Delete",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        modifier = Modifier.padding(end = 12.dp)
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Delete Book",
+                                        tint = if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart)
+                                            MaterialTheme.colorScheme.error
+                                        else Color.Transparent
+                                    )
+                                }
                             }
                         }
                     }
