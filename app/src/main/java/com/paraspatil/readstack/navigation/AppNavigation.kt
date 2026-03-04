@@ -8,7 +8,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
+import androidx.navigation.toRoute
 import com.paraspatil.readstack.domain.model.Book
 import com.paraspatil.readstack.ui.details.BookDetailScreen
 import com.paraspatil.readstack.ui.library.LibraryScreen
@@ -17,13 +17,13 @@ import com.paraspatil.readstack.ui.library.LibraryViewModel
 @Composable
 fun AppNavigation(){
     val navController = rememberNavController()
-    val context=LocalContext.current
+    val context = LocalContext.current
 
     NavHost(
         navController = navController,
-        startDestination = AppScreens.LibraryScreen.route
+        startDestination = AppScreens.LibraryScreen
     ) {
-        composable(AppScreens.LibraryScreen.route) {
+        composable<AppScreens.LibraryScreen> {
             val libraryViewModel: LibraryViewModel = hiltViewModel()
             LibraryScreen(
                 viewModel = libraryViewModel,
@@ -34,15 +34,16 @@ fun AppNavigation(){
                     }
                 },
                 onInfoClick = { bookId ->
-                    navController.navigate("${AppScreens.BookDetailScreen.route}/$bookId")
+                    navController.navigate(AppScreens.BookDetailScreen(bookId = bookId))
                 }
             )
         }
-        composable(
-            route = "${AppScreens.BookDetailScreen.route}/{bookId}",
-            arguments = listOf(navArgument("bookId") { })
-        ) {
-            BookDetailScreen(onNavigateUp = { navController.navigateUp() })
+
+        composable<AppScreens.BookDetailScreen> { backStackEntry ->
+            val args = backStackEntry.toRoute<AppScreens.BookDetailScreen>()
+            BookDetailScreen(
+                onNavigateUp = { navController.navigateUp() }
+            )
         }
     }
 }

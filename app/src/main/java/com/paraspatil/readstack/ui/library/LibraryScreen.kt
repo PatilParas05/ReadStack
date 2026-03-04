@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -454,7 +455,7 @@ fun OfflineBanner(isOffline: Boolean){
 
             ) {
                 Icon(
-                    imageVector = if (isBackOnline) Icons.Default.Search else Icons.Default.CloudOff,
+                    imageVector = if (isBackOnline) Icons.Default.Wifi else Icons.Default.CloudOff,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                     tint = contentColor

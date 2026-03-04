@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -50,20 +51,20 @@ class LibraryViewModel @Inject constructor(
         .distinctUntilChanged()
         .flatMapLatest { query ->
             val trimmedQuery = query.trim()
-            if (trimmedQuery.length < 2){
+            if (trimmedQuery.length < 2) {
                 _isSearching.value = false
                 flowOf(emptyList())
-            }else{
-                executeSearch(trimmedQuery,isNewSearch = true)
-                    repository.getSearchResults(trimmedQuery)
-                    .map{ list -> list.map { it.toDomain() }}
-                }
+            } else {
+                executeSearch(trimmedQuery, isNewSearch = true)
+                repository.getSearchResults(trimmedQuery)
+                    .map { list -> list.map { it.toDomain() } }
             }
-            .stateIn(
-                    scope = viewModelScope,
-                    started = SharingStarted.WhileSubscribed(5000),
-                    initialValue = emptyList()
-                )
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     private val _isRefreshing = MutableStateFlow(false)
 
