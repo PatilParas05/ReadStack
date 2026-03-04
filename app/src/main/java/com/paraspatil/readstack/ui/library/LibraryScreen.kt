@@ -6,6 +6,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,10 +47,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -61,6 +65,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
@@ -232,22 +237,60 @@ fun LibraryTab(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(horizontal = 16.dp)
         ) {
-            items(books, key = { it.id }) {
-                book ->
-                BookCard(
-                    title = book.title,
-                    author = book.author,
-                    thumbnailUrl = book.thumbnailUrl ?: "",
-                    description = book.description,
-                    onActionClick = { onDeleteBook(book) },
-                    actionIcon = Icons.Default.Delete,
-                    actionContentDescription = "Remove from library",
-                    onCardClick = { onBookClick(book) },
-                    onInfoClick = { onInfoClick(book.id) }
-
+            items(books, key = { it.id }) { book ->
+                val dismissState = rememberSwipeToDismissBoxState(
+                    confirmValueChange = { value ->
+                        when (value) {
+                            SwipeToDismissBoxValue.EndToStart -> {
+                                onDeleteBook(book)
+                                true
+                            }
+                            SwipeToDismissBoxValue.StartToEnd -> {
+                                false
+                            }
+                            else -> false
+                        }
+                    }
                 )
-            }
+                SwipeToDismissBox(
+                    state = dismissState,
+                    enableDismissFromStartToEnd = false,
+                    backgroundContent = {
+                        val color = when (dismissState.dismissDirection) {
+                            SwipeToDismissBoxValue.EndToStart -> Color(0xFFE57373)
+                            else -> Color.Transparent
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(color, MaterialTheme.shapes.medium)
+                                .padding(horizontal = 20.dp),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = "Delete Book",
+                                    tint = Color.White
+                                )
+                            }
+                        }
+                    }
+                ) {
+                    BookCard(
+                        title = book.title,
+                        author = book.author,
+                        thumbnailUrl = book.thumbnailUrl ?: "",
+                        description = book.description,
+                        onActionClick = { },
+                        actionIcon = Icons.Default.Delete,
+                        actionContentDescription = "",
+                        onCardClick = { onBookClick(book) },
+                        onInfoClick = { onInfoClick(book.id) }
 
+                    )
+                }
+            }
         }
     }
 }
@@ -374,13 +417,15 @@ fun BookCard(
                     )
                 }
             }
-            Column() {
-            IconButton(onClick = onActionClick) {
-                Icon(
-                    imageVector = actionIcon,
-                    contentDescription = actionContentDescription,
-                    tint = if (actionIcon == Icons.Default.Delete)MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                )
+            Column(horizontalAlignment = Alignment.End) {
+            if (actionIcon != Icons.Default.Delete) {
+                IconButton(onClick = onActionClick) {
+                    Icon(
+                        imageVector = actionIcon,
+                        contentDescription = actionContentDescription,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
                 onInfoClick?.let {
                     IconButton(onClick = it) {
