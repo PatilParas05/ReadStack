@@ -2,12 +2,9 @@ package com.paraspatil.readstack.ui.library
 
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,9 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -27,14 +22,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,7 +38,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Tab
@@ -65,15 +56,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.paraspatil.readstack.domain.model.Book
-import kotlinx.coroutines.delay
+import com.paraspatil.readstack.ui.library.components.BookCard
+import com.paraspatil.readstack.ui.library.components.OfflineBanner
+import com.paraspatil.readstack.ui.library.components.QuoteShareCard
+import com.paraspatil.readstack.ui.library.components.shareQuote
 import kotlinx.coroutines.launch
 
 
@@ -95,6 +90,45 @@ fun LibraryScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val coroutineScope = rememberCoroutineScope()
 
+    var showQuoteDialog by remember { mutableStateOf(false) }
+    var selectedBookForQuote by remember { mutableStateOf<Book?>(null) }
+    var quoteText by remember { mutableStateOf("") }
+    val graphicsLayer = androidx.compose.ui.graphics.rememberGraphicsLayer()
+    val context = LocalContext.current
+
+    if (showQuoteDialog && selectedBookForQuote != null){
+        androidx.compose.ui.window.Dialog(onDismissRequest = {showQuoteDialog = false}) {
+            Card{
+                Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(modifier = Modifier.drawWithContent{
+                        graphicsLayer.record{
+                            this@drawWithContent.drawContent()
+                        }
+                        drawLayer(graphicsLayer)
+                    }){
+                        QuoteShareCard(book = selectedBookForQuote!!, quote = quoteText)
+                    }
+                    OutlinedTextField(
+                        value = quoteText,
+                        onValueChange = { quoteText = it },
+                        label = {Text("Enter your Favorite Quote")}
+                        )
+                    Button(
+                        modifier = Modifier.padding(top = 16.dp),
+                        onClick = {
+                            coroutineScope.launch {
+                                val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+                                shareQuote(context,bitmap)
+                                showQuoteDialog = false
+                            }
+                        }
+                    ) {
+                        Text("Share Image")
+                    }
+                }
+              }
+        }
+    }
 
     LaunchedEffect(uiState.data?.size) {
        if (uiState.data?.size==1){
@@ -202,7 +236,11 @@ fun LibraryScreen(
                 0 -> {
                     LibraryTab(books = uiState.data ?: emptyList(), onDeleteBook = { viewModel.deleteBook(it) },
                         onBookClick = onBookClick,
-                        onInfoClick = onInfoClick
+                        onInfoClick = onInfoClick,
+                        onQuoteClick = { book ->
+                            selectedBookForQuote = book
+                            showQuoteDialog = true
+                        }
                     )
                 }
                 1 -> {
@@ -232,7 +270,8 @@ fun LibraryTab(
     books: List<Book>,
     onDeleteBook: (Book) -> Unit,
     onBookClick: (Book) -> Unit,
-    onInfoClick: (String) -> Unit
+    onInfoClick: (String) -> Unit,
+    onQuoteClick: (Book) -> Unit
 ) {
     if (books.isEmpty()) {
         Spacer(modifier = Modifier.padding(top = 30.dp))
@@ -296,6 +335,7 @@ fun LibraryTab(
                     }
                 ) {
                     BookCard(
+                        book = book,
                         title = book.title,
                         author = book.author,
                         thumbnailUrl = book.thumbnailUrl ?: "",
@@ -304,8 +344,10 @@ fun LibraryTab(
                         actionIcon = Icons.Default.Delete,
                         actionContentDescription = "",
                         onCardClick = { onBookClick(book) },
-                        onInfoClick = { onInfoClick(book.id) }
-
+                        onInfoClick = { onInfoClick(book.id) },
+                        onQuoteClick = {
+                            onQuoteClick(book)
+                        }
                     )
                 }
             }
@@ -357,6 +399,7 @@ fun SearchTab(
             ) {
                 items(searchResults, key = { it.id }) { result ->
                     BookCard(
+                        book = result,
                         title = result.title,
                         author = result.author,
                         thumbnailUrl = result.thumbnailUrl ?: "",
@@ -365,6 +408,7 @@ fun SearchTab(
                         actionIcon = Icons.Default.Add,
                         actionContentDescription = "Add to library",
                         onCardClick = { onBookClick(result) },
+                        onQuoteClick = {},
                         onInfoClick = null
                     )
                 }
@@ -374,92 +418,6 @@ fun SearchTab(
 
     }
 }
-
-@Composable
-fun BookCard(
-    title: String,
-    author: String,
-    thumbnailUrl: String,
-    description: String,
-    onActionClick: () -> Unit,
-    actionIcon: androidx.compose.ui.graphics.vector.ImageVector,
-    actionContentDescription: String,
-    onCardClick: () -> Unit,
-    onInfoClick: (() -> Unit)?
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCardClick() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-
-        ) {
-            AsyncImage(
-                model = thumbnailUrl,
-                contentDescription = null,
-                modifier = Modifier.size(80.dp, 120.dp),
-                contentScale = ContentScale.Crop
-
-            )
-            Spacer(modifier = Modifier.size(12.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-
-                )
-                Text(
-                    text = author,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (description.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-            Column(horizontalAlignment = Alignment.End) {
-            if (actionIcon != Icons.Default.Delete) {
-                IconButton(onClick = onActionClick) {
-                    Icon(
-                        imageVector = actionIcon,
-                        contentDescription = actionContentDescription,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-                onInfoClick?.let {
-                    IconButton(onClick = it) {
-                        Icon(
-                            imageVector = Icons.Default.Info,
-                            contentDescription = "Book Details",
-                            tint = MaterialTheme.colorScheme.secondary
-                        )
-                    }
-                }
-            }
-
-        }
-    }
-}
-
 
 @Composable
 fun EmptyState(message: String) {
@@ -474,62 +432,5 @@ fun EmptyState(message: String) {
         )
     }
 }
-@Composable
-fun OfflineBanner(isOffline: Boolean){
-    var showConnectedMessage by remember { mutableStateOf(false) }
-    var isFirstLoad by remember { mutableStateOf(true) }
-    LaunchedEffect(isOffline) {
-        if (isFirstLoad){
-            isFirstLoad = false
-            return@LaunchedEffect
-        }
-        if (!isOffline) {
-            showConnectedMessage = true
-            delay(5000)
-            showConnectedMessage = false
-            }
-    }
-    AnimatedVisibility(
-        visible = isOffline || showConnectedMessage,
-        enter = expandVertically(),
-        exit = shrinkVertically()
-    ) {
-        val isBackOnline = !isOffline
-        val backgroundColor = if (isBackOnline) {
-            androidx.compose.ui.graphics.Color(0xFF4CAF50)
-        }else{
-                MaterialTheme.colorScheme.errorContainer
-            }
 
-        val contentColor = if (isBackOnline) {
-            androidx.compose.ui.graphics.Color.White
-        }else{
-            MaterialTheme.colorScheme.onErrorContainer
-        }
 
-        Surface(
-            color = backgroundColor,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier.padding(vertical = 4.dp, horizontal = 16.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-
-            ) {
-                Icon(
-                    imageVector = if (isBackOnline) Icons.Default.Wifi else Icons.Default.CloudOff,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = contentColor
-                )
-                Spacer(modifier = Modifier.size(8.dp))
-                Text(
-                    text = if (isBackOnline)"Back Online" else "No Internet Connection",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = contentColor
-                    )
-            }
-        }
-    }
-}
