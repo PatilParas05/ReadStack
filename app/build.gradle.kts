@@ -94,4 +94,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
     implementation("androidx.navigation:navigation-compose:2.8.5")
+    //Browser
+    implementation("androidx.browser:browser:1.8.0")
 }

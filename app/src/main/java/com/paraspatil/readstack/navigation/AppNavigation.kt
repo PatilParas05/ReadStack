@@ -13,6 +13,7 @@ import com.paraspatil.readstack.domain.model.Book
 import com.paraspatil.readstack.ui.details.BookDetailScreen
 import com.paraspatil.readstack.ui.library.LibraryScreen
 import com.paraspatil.readstack.ui.library.LibraryViewModel
+import com.paraspatil.readstack.ui.library.components.BrowserUtils
 
 @Composable
 fun AppNavigation(){
@@ -29,8 +30,7 @@ fun AppNavigation(){
                 viewModel = libraryViewModel,
                 onBookClick = { book: Book ->
                     book.previewLink?.let {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(it))
-                        context.startActivity(intent)
+                        BrowserUtils.launchBrowser(context, it)
                     }
                 },
                 onInfoClick = { bookId ->
