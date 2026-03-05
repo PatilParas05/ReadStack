@@ -281,7 +281,6 @@ fun LibraryScreen(
                             },
                             onLoadMore = { viewModel.loadMore() },
                             onBookClick = onBookClick
-
                         )
                     }
                 }

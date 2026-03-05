@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -29,6 +28,7 @@ import coil.compose.AsyncImage
 import com.paraspatil.readstack.domain.model.Book
 import java.io.File
 import java.io.FileOutputStream
+import androidx.compose.material.icons.filled.FormatQuote
 
 
 @Composable
@@ -60,7 +60,7 @@ fun QuoteShareCard(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Icon(
-                    imageVector = Icons.Default.Info,
+                    imageVector = Icons.Default.FormatQuote,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(40.dp)
@@ -91,15 +91,15 @@ fun QuoteShareCard(
 fun shareQuote(context: Context,bitmap: Bitmap) {
     try {
         val cachePath = File(context.cacheDir, "images")
-        cachePath.mkdirs()
-        val stream = FileOutputStream("$cachePath/image.png")
+       if (!cachePath.exists()) cachePath.mkdirs()
+
+        val file = File(cachePath,"shared_quote.png")
+        val stream = FileOutputStream(file)
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
         stream.close()
 
-        val imagePath = File(context.cacheDir, "images")
-        val newFile = File(imagePath, "image.png")
         val contentUri =
-            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", newFile)
+            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
 
         val shareIntent = Intent().apply {
             action = Intent.ACTION_SEND
@@ -107,8 +107,9 @@ fun shareQuote(context: Context,bitmap: Bitmap) {
             setDataAndType(contentUri, context.contentResolver.getType(contentUri))
             putExtra(Intent.EXTRA_STREAM, contentUri)
             type = "image/png"
+            clipData = android.content.ClipData.newRawUri("",contentUri)
         }
-        context.startActivity(Intent.createChooser(shareIntent, "Share Quote"))
+        context.startActivity(Intent.createChooser(shareIntent, "Share Book Quote via"))
     }catch (e : Exception){
         e.printStackTrace()
     }
