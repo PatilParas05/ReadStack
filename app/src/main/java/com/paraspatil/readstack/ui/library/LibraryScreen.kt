@@ -14,9 +14,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -27,6 +30,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -79,23 +83,28 @@ fun LibraryScreen(
     onInfoClick: (String) -> Unit,
     onBookClick: (Book) -> Unit
 ) {
+    //State Observation
     val uiState by viewModel.uiState.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
 
-
-    var selectedTab by remember { mutableStateOf(0) }
+    //UI local state
     val snackbarHostState = remember { SnackbarHostState() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val coroutineScope = rememberCoroutineScope()
 
+    //State for the Share Quote feature
     var showQuoteDialog by remember { mutableStateOf(false) }
     var selectedBookForQuote by remember { mutableStateOf<Book?>(null) }
     var quoteText by remember { mutableStateOf("") }
+    //Use to capture Composable UI and turn into bitmap/image
     val graphicsLayer = androidx.compose.ui.graphics.rememberGraphicsLayer()
     val context = LocalContext.current
+    //Manage swiping between tabs
+    val pagerState = rememberPagerState(pageCount = {2})
 
+    //Quote Sharing Dialog
     if (showQuoteDialog && selectedBookForQuote != null){
         androidx.compose.ui.window.Dialog(onDismissRequest = {showQuoteDialog = false}) {
             Card{
@@ -129,7 +138,7 @@ fun LibraryScreen(
               }
         }
     }
-
+    // Tip shows snackbar when use add there first book
     LaunchedEffect(uiState.data?.size) {
        if (uiState.data?.size==1){
            snackbarHostState.showSnackbar(
@@ -138,6 +147,7 @@ fun LibraryScreen(
            )
        }
     }
+    //Shows a snackbar when ViewModel reports an error
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
             snackbarHostState.showSnackbar(it)
@@ -191,7 +201,7 @@ fun LibraryScreen(
                         }
                         AnimatedVisibility(visible = !isSearching) {
                             IconButton(onClick = {
-                                selectedTab = 1
+                               coroutineScope.launch { pagerState.animateScrollToPage(1) }
                                 keyboardController?.hide()
                             }) {
                                 Icon(Icons.Default.Search, contentDescription = "Search")
@@ -205,7 +215,7 @@ fun LibraryScreen(
                 ),
                 keyboardActions = KeyboardActions(
                     onSearch = {
-                        selectedTab = 1
+                        coroutineScope.launch { pagerState.animateScrollToPage(1) }
                         keyboardController?.hide()
                     }
                 ),
@@ -220,51 +230,66 @@ fun LibraryScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            TabRow(selectedTabIndex = selectedTab) {
+            //Tab navigation
+            TabRow(selectedTabIndex = pagerState.currentPage) {
                 Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
+                    selected = pagerState.currentPage == 0,
+                    onClick = {
+                        coroutineScope.launch { pagerState.animateScrollToPage(0) }
+                    },
                     text = { Text("My Library (${uiState.data?.size ?: 0})") }
                 )
                 Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
+                    selected = pagerState.currentPage == 1,
+                    onClick = {
+                        coroutineScope.launch { pagerState.animateScrollToPage(1) }
+                    },
                     text = { Text("Search (${searchResults.size})") }
                 )
             }
-            when (selectedTab) {
-                0 -> {
-                    LibraryTab(books = uiState.data ?: emptyList(), onDeleteBook = { viewModel.deleteBook(it) },
-                        onBookClick = onBookClick,
-                        onInfoClick = onInfoClick,
-                        onQuoteClick = { book ->
-                            selectedBookForQuote = book
-                            showQuoteDialog = true
-                        }
-                    )
-                }
-                1 -> {
-                    SearchTab(
-                        searchQuery = searchQuery,
-                        searchResults = searchResults,
-                        isSearching = isSearching,
-                        onAddToLibrary = { result ->
-                            viewModel.addLibrary(result)
-                            coroutineScope.launch {
-                                snackbarHostState.currentSnackbarData?.dismiss()
-                                snackbarHostState.showSnackbar("Book added to library")
+            //Swipe content area
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.Top
+            ) { page ->
+                when (page) {
+                    0 -> {
+                        LibraryTab(
+                            books = uiState.data ?: emptyList(),
+                            onDeleteBook = { viewModel.deleteBook(it) },
+                            onBookClick = onBookClick,
+                            onInfoClick = onInfoClick,
+                            onQuoteClick = { book ->
+                                selectedBookForQuote = book
+                                showQuoteDialog = true
                             }
-                        },
-                        onLoadMore = { viewModel.loadMore() },
-                        onBookClick = onBookClick
+                        )
+                    }
 
-                    )
+                    1 -> {
+                        SearchTab(
+                            searchQuery = searchQuery,
+                            searchResults = searchResults,
+                            isSearching = isSearching,
+                            onAddToLibrary = { result ->
+                                viewModel.addLibrary(result)
+                                coroutineScope.launch {
+                                    snackbarHostState.currentSnackbarData?.dismiss()
+                                    snackbarHostState.showSnackbar("Book added to library")
+                                }
+                            },
+                            onLoadMore = { viewModel.loadMore() },
+                            onBookClick = onBookClick
+
+                        )
+                    }
                 }
             }
         }
     }
 }
-
+// Library Tab shows list of saved books
 @Composable
 fun LibraryTab(
     books: List<Book>,
@@ -285,6 +310,7 @@ fun LibraryTab(
             contentPadding = PaddingValues(horizontal = 16.dp)
         ) {
             items(books, key = { it.id }) { book ->
+                //Swipe to dismiss
                 val dismissState = rememberSwipeToDismissBoxState(
                     confirmValueChange = { value ->
                         when (value) {
@@ -302,6 +328,7 @@ fun LibraryTab(
                 SwipeToDismissBox(
                     state = dismissState,
                     enableDismissFromStartToEnd = false,
+                    //Background UI shown during swipe
                     backgroundContent = {
                         val color = when (dismissState.dismissDirection) {
                             SwipeToDismissBoxValue.EndToStart -> Color(0xFFE57373)
@@ -355,7 +382,7 @@ fun LibraryTab(
     }
 }
 
-
+// Search Tab shows search results books
 @Composable
 fun SearchTab(
     searchQuery: String,
@@ -366,18 +393,18 @@ fun SearchTab(
     onBookClick: (Book) -> Unit
 ) {
     val listState = rememberLazyListState()
-
+    //Scroll to top when automatically when a new search starts
     LaunchedEffect(searchQuery) {
         if (searchQuery.isNotEmpty())listState.scrollToItem(0)
     }
-
+    //Pagination Detect when user hits the bottom
     val shouldLoadMore by remember {
         derivedStateOf {
             val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
             lastVisibleItem != null && lastVisibleItem.index == listState.layoutInfo.totalItemsCount - 1 && !isSearching
         }
     }
-
+    //Trigger loading more items from viewmodel
     LaunchedEffect(shouldLoadMore) {
         if (shouldLoadMore) {
             onLoadMore()
@@ -412,13 +439,23 @@ fun SearchTab(
                         onInfoClick = null
                     )
                 }
-
+                if (isSearching && searchResults.isNotEmpty()){
+                    item{
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                        }
+                    }
+                }
             }
         }
-
     }
 }
-
+// Show message when a list is empty
 @Composable
 fun EmptyState(message: String) {
     Box(
@@ -428,7 +465,7 @@ fun EmptyState(message: String) {
         Text(
             text = message,
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

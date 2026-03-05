@@ -37,25 +37,25 @@ class LibraryViewModel @Inject constructor(
     private var searchJob: Job? = null
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
-
     private val _isSearching = MutableStateFlow(false)
     val isSearching = _isSearching.asStateFlow()
 
     private val _searchError = MutableStateFlow<String?>(null)
-
-
     private val _currentPage = MutableStateFlow(0)
 
+    //Search logic
     val searchResults: StateFlow<List<Book>> = _searchQuery
-        .debounce(500L)
-        .distinctUntilChanged()
+        .debounce(500L)//wait for user to stop writing
+        .distinctUntilChanged()//only trigger when text actually changed
         .flatMapLatest { query ->
             val trimmedQuery = query.trim()
             if (trimmedQuery.length < 2) {
                 _isSearching.value = false
                 flowOf(emptyList())
             } else {
+                //trigger network search
                 executeSearch(trimmedQuery, isNewSearch = true)
+                //return database source of truth
                 repository.getSearchResults(trimmedQuery)
                     .map { list -> list.map { it.toDomain() } }
             }
@@ -95,9 +95,9 @@ class LibraryViewModel @Inject constructor(
     fun onSearchQueryChange(newQuery: String) {
         _searchQuery.value = newQuery
     }
-
+    //Executes the actual API call
     private fun executeSearch(query:String,isNewSearch: Boolean) {
-        searchJob?.cancel()
+        searchJob?.cancel()//cancel previous search job
         searchJob = viewModelScope.launch {
             _isSearching.value = true
             _searchError.value = null

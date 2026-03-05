@@ -18,6 +18,7 @@ class ReadStackApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        //background sync trigger
         WorkManagerModule.scheduleSyncWork(workManager)
     }
 
