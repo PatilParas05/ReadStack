@@ -6,14 +6,20 @@ import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -21,85 +27,130 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.paraspatil.readstack.domain.model.Book
 import java.io.File
 import java.io.FileOutputStream
-import androidx.compose.material.icons.filled.FormatQuote
-
 
 @Composable
 fun QuoteShareCard(
     book: Book,
-    quote : String,
+    quote: String,
     modifier: Modifier = Modifier
-){
+) {
     Card(
-        modifier = Modifier
-            .size(400.dp)
-            .padding(16.dp),
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer),
-        elevation = CardDefaults.cardElevation(8.dp)
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        ),
+        elevation = CardDefaults.cardElevation(6.dp)
     ) {
-        Box(
-            modifier= Modifier.fillMaxSize()
-        ){
-            AsyncImage(
-                model = book.thumbnailUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize().alpha(0.2f),
-                contentScale = ContentScale.Crop
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // ── Book cover + meta row ──────────────────────────────────
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Start
+            ) {
+                // Full visible book cover thumbnail
+                AsyncImage(
+                    model = book.thumbnailUrl,
+                    contentDescription = book.title,
+                    modifier = Modifier
+                        .size(64.dp, 96.dp)          // fixed size, portrait ratio
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+
+                Spacer(modifier = Modifier.width(14.dp))
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = book.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = book.author,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "Read on ReadStack",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontStyle = FontStyle.Italic
+                    )
+                }
+            }
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
             )
-            Column(
-                modifier=Modifier.padding(24.dp).fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
+
+            // ── Quote area ────────────────────────────────────────────
+            Row(
+                verticalAlignment = Alignment.Top
             ) {
                 Icon(
                     imageVector = Icons.Default.FormatQuote,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(28.dp)
                 )
-                Spacer(modifier= Modifier.height(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "\"$quote\"",
-                    style = MaterialTheme.typography.headlineSmall,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                )
-                Spacer(modifier= Modifier.height(24.dp))
-                Text(
-                    text ="- ${book.title}",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = "Read on ReadStack",
-                    style = MaterialTheme.typography.labelSmall,
-                    modifier = Modifier.padding(top = 8.dp).alpha(0.7f),
+                    text = if (quote.isBlank()) "Your quote will appear here…" else "\"$quote\"",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontStyle = FontStyle.Italic,
+                    textAlign = TextAlign.Start,
+                    color = if (quote.isBlank())
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.45f)
+                    else
+                        MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
     }
 }
-fun shareQuote(context: Context,bitmap: Bitmap) {
+
+fun shareQuote(context: Context, bitmap: Bitmap) {
     try {
         val cachePath = File(context.cacheDir, "images")
-       if (!cachePath.exists()) cachePath.mkdirs()
-
-        val file = File(cachePath,"shared_quote.png")
+        if (!cachePath.exists()) cachePath.mkdirs()
+        val file = File(cachePath, "shared_quote.png")
         val stream = FileOutputStream(file)
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
         stream.close()
 
-        val contentUri =
-            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val contentUri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
 
         val shareIntent = Intent().apply {
             action = Intent.ACTION_SEND
@@ -107,10 +158,10 @@ fun shareQuote(context: Context,bitmap: Bitmap) {
             setDataAndType(contentUri, context.contentResolver.getType(contentUri))
             putExtra(Intent.EXTRA_STREAM, contentUri)
             type = "image/png"
-            clipData = android.content.ClipData.newRawUri("",contentUri)
+            clipData = android.content.ClipData.newRawUri("", contentUri)
         }
         context.startActivity(Intent.createChooser(shareIntent, "Share Book Quote via"))
-    }catch (e : Exception){
+    } catch (e: Exception) {
         e.printStackTrace()
     }
 }
