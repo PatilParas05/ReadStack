@@ -1,7 +1,9 @@
 package com.paraspatil.readstack.navigation
 
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
@@ -18,7 +20,7 @@ import com.paraspatil.readstack.ui.library.components.BrowserUtils
 fun AppNavigation(){
     val navController = rememberNavController()
     val context = LocalContext.current
-
+    val surfaceColor = MaterialTheme.colorScheme.surface.toArgb()
     NavHost(
         navController = navController,
         startDestination = AppScreens.LibraryScreen
@@ -28,8 +30,12 @@ fun AppNavigation(){
             LibraryScreen(
                 viewModel = libraryViewModel,
                 onBookClick = { book: Book ->
-                    book.previewLink?.let {
-                        BrowserUtils.launchBrowser(context, it)
+                    book.previewLink?.let { url ->
+                        BrowserUtils.launchBrowser(
+                            context = context,
+                            url = url,
+                            toolbarColor = surfaceColor
+                        )
                     }
                 },
                 onInfoClick = { bookId ->
