@@ -96,4 +96,19 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.5")
     //Browser
     implementation("androidx.browser:browser:1.8.0")
+
+    //Testing
+    // Unit testing
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("io.mockk:mockk:1.13.10")                          // MockK for mocking
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3") // coroutines-test
+    testImplementation("app.cash.turbine:turbine:1.1.0")                  // Turbine for Flow testing
+    testImplementation("androidx.arch.core:core-testing:2.2.0")           // InstantTaskExecutorRule
+
+// Instrumented (Compose UI) testing
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    androidTestImplementation("com.google.dagger:hilt-android-testing:2.50") // Hilt for instrumented tests
+    kspAndroidTest("com.google.dagger:hilt-android-compiler:2.50")
 }
