@@ -40,6 +40,14 @@ android {
     buildFeatures {
         compose = true
     }
+    packaging {
+        resources {
+            // Exclude duplicate license and notice files that cause build failures
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/LICENSE.md"
+            excludes += "/META-INF/LICENSE-notice.md"
+        }
+    }
 }
 
 dependencies {
@@ -100,9 +108,12 @@ dependencies {
     //Testing
     // Unit testing
     testImplementation("junit:junit:4.13.2")
-    testImplementation("io.mockk:mockk:1.13.10")                          // MockK for mocking
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3") // coroutines-test
-    testImplementation("app.cash.turbine:turbine:1.1.0")                  // Turbine for Flow testing
+    testImplementation("io.mockk:mockk:1.13.10")
+    androidTestImplementation("io.mockk:mockk-android:1.13.10") // MockK for mocking
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")// coroutines-test
+    testImplementation("app.cash.turbine:turbine:1.1.0")
+    androidTestImplementation("app.cash.turbine:turbine:1.1.0")// Turbine for Flow testing
     testImplementation("androidx.arch.core:core-testing:2.2.0")           // InstantTaskExecutorRule
 
 // Instrumented (Compose UI) testing
