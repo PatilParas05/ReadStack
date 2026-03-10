@@ -5,6 +5,7 @@ import com.paraspatil.readstack.data.remote.BookItemDto
 import com.paraspatil.readstack.data.remote.BookResponseDto
 import com.paraspatil.readstack.data.remote.GoogleBookApi
 import com.paraspatil.readstack.data.remote.VolumeInfoDto
+import com.paraspatil.readstack.data.repository.BookRepositoryImpl
 import com.paraspatil.readstack.data.util.NetworkMonitor
 import com.paraspatil.readstack.domain.util.NetworkResult
 import io.mockk.Runs
@@ -31,7 +32,7 @@ class BookRepositoryImplTest {
         api = mockk()
         dao = mockk(relaxed = true)
         networkMonitor = mockk()
-        repository = BookRepositoryImpl(api, dao, networkMonitor,mockk(relaxed = true))
+        repository = BookRepositoryImpl(api, dao, networkMonitor, mockk(relaxed = true))
 
     }
     @Test
