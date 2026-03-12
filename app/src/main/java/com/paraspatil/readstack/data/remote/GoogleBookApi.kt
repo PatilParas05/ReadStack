@@ -8,6 +8,7 @@ interface GoogleBookApi {
     suspend fun searchBooks(
         @Query("q") query: String,
         @Query("maxResults") maxResults: Int,
+        @Query("key") apiKey: String = API_KEY,
         @Query("printType") printType: String = "books"
     ): BookResponseDto
 
@@ -16,11 +17,13 @@ interface GoogleBookApi {
         @Query("q") query: String,
         @Query("startIndex") startIndex: Int,
         @Query("maxResults") maxResults: Int,
+        @Query("key") apiKey: String = API_KEY,
         @Query("printType") printType: String = "books"
     ): BookResponseDto
 
     companion object{
         const val BASE_URL="https://www.googleapis.com/books/v1/"
+        const val API_KEY = ""//Add here Google API key
 
     }
 
