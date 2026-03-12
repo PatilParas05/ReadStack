@@ -111,6 +111,7 @@ This project was built to explore and practice the following concepts:
 - **Target SDK**: 36
 - **Kotlin**: Latest stable
 - Internet permission required (for Google Books API)
+- A **Google Books API Key** (free) — [Get one here](https://console.cloud.google.com/)
 
 ---
 
@@ -122,9 +123,15 @@ This project was built to explore and practice the following concepts:
    ```
 2. **Open** in Android Studio
 3. **Sync** Gradle dependencies
-4. **Run** on an emulator or physical device (Android 8.0+)
-
-> No API key required — uses the public Google Books API endpoint.
+4. **Add your Google Books API Key**
+   - Go to `app/src/main/java/com/paraspatil/readstack/data/remote/GoogleBookApi.kt`
+   - Find the `API_KEY` constant in the `companion object`
+   - Replace the empty string with your key:
+   ```kotlin
+   const val API_KEY = "YOUR_API_KEY_HERE"
+   ```
+   > 🔑 Get a free API key from [Google Cloud Console](https://console.cloud.google.com/) → Enable **Books API** → Create credentials
+5. **Run** on an emulator or physical device (Android 8.0+)
 
 ---
 
@@ -141,6 +148,7 @@ This project was built to explore and practice the following concepts:
 | `BookDao.kt` | Room DAO: library and search result queries |
 | `SyncWorker.kt` | Background WorkManager sync worker |
 | `NetworkMonitor.kt` | Real-time network connectivity observer |
+| `GoogleBookApi.kt` | Retrofit API interface — add your API key here |
 
 ---
 
